@@ -1,0 +1,10 @@
+# Local and operating-system files
+.DS_Store
+.superpowers/
+
+# Obsidian runtime/user state
+data.json
+.handwriting/
+
+# Local development dependencies
+node_modules/
