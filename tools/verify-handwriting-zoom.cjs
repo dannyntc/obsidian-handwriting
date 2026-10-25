@@ -4,7 +4,7 @@ const main = fs.readFileSync("main.js", "utf8");
 const css = fs.readFileSync("styles.css", "utf8");
 
 const checks = [
-  ["150% zoom ceiling", /var mn=1\.5/.test(main)],
+  ["150% zoom ceiling", /var mn=1\.5/ .test(main)],
   ["no four-button zoom tuple", !main.includes('["Zoom out","\\u2212"')],
   ["readout control class", main.includes("handwriting-note-viewport-controls")],
   ["final pinch commit uses hard cap", !main.includes("e>mn*Ed")],
@@ -14,6 +14,13 @@ const checks = [
   ["single reset readout button", (main.match(/createEl\("button",\{text:"100%"/g) || []).length === 1],
   ["pane clipping rule", css.includes(".handwriting-note-viewport-pane")],
   ["readout reset label", main.includes("Reset note zoom to 100%")],
+  ["portable snapshot manager", main.includes("HandwritingPortableSnapshots")],
+  ["portable snapshot markers", main.includes("handwriting-portable-snapshot:start") && main.includes("handwriting-portable-snapshot:end")],
+  ["portable snapshot attachment folder", main.includes("Handwriting snapshots")],
+  ["portable snapshot note update", main.includes("vault.process(file")],
+  ["portable snapshot refresh command", main.includes("handwriting-refresh-portable-snapshot")],
+  ["portable snapshot unload flush", main.includes("portableSnapshots?.flush")],
+  ["portable snapshot hidden while plugin runs", main.includes("handwriting-installed") && css.includes(".handwriting-portable-snapshot")],
 ];
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);

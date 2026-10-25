@@ -3225,6 +3225,7 @@ body.handwriting-boox .handwriting-mobile-tool.is-pressed:not(.is-disabled) {
    today (opacity 60ms linear 160ms) but this is
    copied from the strip on purpose: the zoom bar sits alongside the strip,
    not the collapsed pill. */
+body.handwriting-installed .handwriting-portable-snapshot { display:none !important; }
 .handwriting-note-viewport-controls { position:absolute; top:52px; right:8px; z-index:30; display:flex; gap:2px; padding:3px; border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary); box-shadow:0 2px 8px #0002; contain:layout paint; max-width:calc(100% - 16px); overflow:clip; will-change: transform, opacity; transition: opacity 60ms linear 160ms; }
 .handwriting-note-viewport-controls button { box-sizing:border-box; min-width:30px; height:30px; padding:0 6px; font-size:12px; }
 /* Below the pen strip and its folded pill on a phone, never over them. The fixed top above is sized for the
