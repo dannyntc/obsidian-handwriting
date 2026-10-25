@@ -1,6 +1,19 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.5.0`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.5.1`.
+
+## 1.5.1 — 2026-10-25
+
+### Fixed
+
+- Removed visible portable-snapshot HTML comment markers from notes while Handwriting is active.
+- Replaced comment-delimited snapshot blocks with a self-identifying, comment-free HTML block.
+- Automatically migrates both spaced and compact `1.5.0` snapshot markers when an affected note is refreshed.
+
+### Compatibility
+
+- Existing SVG snapshot attachments and editable `.handwriting` sidecars are preserved.
+- Snapshots remain readable when the plugin is disabled or removed.
 
 ## 1.5.0 — 2026-10-25
 

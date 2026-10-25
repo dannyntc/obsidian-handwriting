@@ -28,35 +28,75 @@ vm.runInNewContext(`${source}\nthis.PortableSnapshots=HandwritingPortableSnapsho
 
 (async()=>{
   const file = new TFile("folder/note.md");
-  let note = "# Note\n\nText\n";
-  const folders = new Set();
-  const created = new Map();
-  const vault = {
-    getAbstractFileByPath(path) {
-      return folders.has(path) || created.has(path) ? {} : null;
-    },
-    async createFolder(path) {
-      folders.add(path);
-    },
-    async create(path, content) {
-      created.set(path, content);
-      return { path };
-    },
-    async process(target, callback) {
-      note = callback(note);
-      return target;
-    },
+  const makeVault = initialNote => {
+    let note = initialNote;
+    const folders = new Set();
+    const created = new Map();
+    return {
+      get note() {
+        return note;
+      },
+      created,
+      vault: {
+        getAbstractFileByPath(path) {
+          return folders.has(path) || created.has(path) ? {} : null;
+        },
+        async createFolder(path) {
+          folders.add(path);
+        },
+        async create(path, content) {
+          created.set(path, content);
+          return { path };
+        },
+        async process(target, callback) {
+          note = callback(note);
+          return target;
+        },
+      },
+    };
   };
+  const publish = async (initialNote, generation) => {
+    const state = makeVault(initialNote);
+    const manager = new context.PortableSnapshots({ vault: state.vault });
+    await manager.publish(file, { svg: "<svg/>" }, generation);
+    return { manager, state };
+  };
+  const hasLegacyMarker = note => /<!--\s*handwriting-portable-snapshot:(?:start|end)\s*-->/i.test(note);
+  const countManagedBlocks = note => (note.match(/data-handwriting-portable-snapshot="true"/g) || []).length;
 
-  const manager = new context.PortableSnapshots({ vault });
-  await manager.publish(file, { svg: "<svg/>" }, 4);
+  const modern = await publish("# Note\n\nText\n", 4);
+  if (hasLegacyMarker(modern.state.note)) throw new Error("new snapshots must not contain visible legacy marker comments");
+  if (!modern.state.note.includes('data-handwriting-portable-snapshot="true"')) throw new Error("snapshot data block was not inserted");
+  if (!modern.state.note.includes("../Handwriting%20snapshots/page-123/snapshot-4-")) throw new Error("snapshot link is not relative to the note");
+  if (modern.state.created.size !== 1) throw new Error("snapshot attachment was not created");
 
-  if (!note.includes("handwriting-portable-snapshot:start")) throw new Error("snapshot marker was not inserted");
-  if (!note.includes("../Handwriting%20snapshots/page-123/snapshot-4-")) throw new Error("snapshot link is not relative to the note");
-  if (created.size !== 1) throw new Error("snapshot attachment was not created");
+  const legacy = await publish(
+    "# Note\n\n<!-- handwriting-portable-snapshot:start -->\n\n<div class=\"handwriting-portable-snapshot\"><img src=\"old.svg\"></div>\n\n<!-- handwriting-portable-snapshot:end -->\n\nAfter\n",
+    5,
+  );
+  if (hasLegacyMarker(legacy.state.note)) throw new Error("spaced legacy markers were not migrated");
+  if (countManagedBlocks(legacy.state.note) !== 1) throw new Error("legacy snapshot did not become one managed data block");
+  if (!legacy.state.note.includes("../Handwriting%20snapshots/page-123/snapshot-5-")) throw new Error("migrated snapshot link is not current");
+  if (!legacy.state.note.includes("# Note")) throw new Error("legacy migration removed note content");
+  if (legacy.state.note.indexOf("After") < legacy.state.note.indexOf("data-handwriting-portable-snapshot")) throw new Error("legacy migration moved content after the snapshot");
 
-  await manager.removePublishedBlock(file);
-  if (note.includes("handwriting-portable-snapshot:start")) throw new Error("snapshot marker was not removable");
+  const compactLegacy = await publish(
+    "# Note\n\n<!--handwriting-portable-snapshot:start-->\n<div class=\"handwriting-portable-snapshot\"><img src=\"old.svg\"></div>\n<!--handwriting-portable-snapshot:end-->\n",
+    6,
+  );
+  if (hasLegacyMarker(compactLegacy.state.note)) throw new Error("compact legacy markers were not migrated");
+  if (countManagedBlocks(compactLegacy.state.note) !== 1) throw new Error("compact legacy snapshot did not become one managed data block");
+  if (!compactLegacy.state.note.includes("# Note")) throw new Error("compact legacy migration removed note content");
+
+  const unmatched = makeVault("# Note\n\n<!--handwriting-portable-snapshot:end-->\n");
+  const unmatchedManager = new context.PortableSnapshots({ vault: unmatched.vault });
+  await unmatchedManager.removePublishedBlock(file);
+  if (hasLegacyMarker(unmatched.note)) throw new Error("unmatched legacy marker was not removed");
+
+  await modern.manager.removePublishedBlock(file);
+  if (modern.state.note.includes("data-handwriting-portable-snapshot=\"true\"")) throw new Error("snapshot data block was not removable");
+  if (!modern.state.note.includes("# Note")) throw new Error("snapshot removal removed note content");
+  if (modern.state.created.size !== 1) throw new Error("snapshot attachment was deleted during block removal");
   if (!bundle.includes("HandwritingPortableSnapshots")) throw new Error("manager is missing from main.js");
   if (notices.length !== 0) throw new Error(`unexpected notices: ${notices.join(", ")}`);
 

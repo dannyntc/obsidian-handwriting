@@ -4,14 +4,14 @@ An Obsidian community plugin for handwriting, highlighting, erasing, and lasso s
 
 ## Current release
 
-Version `1.5.0`.
+Version `1.5.1`.
 
 This release includes:
 
 - Pinch-only note zoom capped at 150%.
 - A floating zoom percentage readout that resets the note to 100% when tapped.
 - Sharper settled handwriting after zooming with optimized redraw and compositing behavior.
-- Portable SVG snapshots that keep handwritten notes readable when the plugin is disabled or removed.
+- Portable SVG snapshots stored in a comment-free managed HTML block, keeping handwritten notes readable when the plugin is disabled or removed.
 - Editable handwriting preserved in the plugin's `.handwriting` sidecar storage when the plugin is re-enabled.
 
 See [CHANGELOG.md](CHANGELOG.md) for the reconstructed release history.

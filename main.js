@@ -48,12 +48,11 @@ your ink is still on screen. your next stroke saves it again.`;function mE(i){re
  * it remains readable after the plugin is disabled or removed.
  */
 var HandwritingPortableSnapshots=(()=>{
-  const START="<!-- handwriting-portable-snapshot:start -->";
-  const END="<!-- handwriting-portable-snapshot:end -->";
   const FOLDER="Handwriting snapshots";
   const WAIT_MS=2000;
 
-  const escapeRe=value=>value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const managedBlockPattern=()=>/<!--\s*handwriting-portable-snapshot:start\s*-->[\s\S]*?<!--\s*handwriting-portable-snapshot:end\s*-->\s*|<div\b(?=[^>]*\bdata-handwriting-portable-snapshot\s*=\s*["']true["'])[^>]*>[\s\S]*?<\/div>\s*/gi;
+  const legacyMarkerPattern=()=>/<!--\s*handwriting-portable-snapshot:(?:start|end)\s*-->/gi;
   const escapeXml=value=>String(value).replace(/[&<>\"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&apos;"}[char]));
   const number=value=>Number.isFinite(value)?String(Math.round(value*100)/100):"0";
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -80,10 +79,10 @@ var HandwritingPortableSnapshots=(()=>{
     while(base.length&&target.length&&base[0]===target[0])base.shift(),target.shift();
     return [...base.map(()=>".."),...target].join("/")||target.at(-1)||to;
   };
-  const withoutManagedBlock=(content)=>content.replace(new RegExp(`${escapeRe(START)}[\\s\\S]*?${escapeRe(END)}\\s*`,"g"),"").trimEnd();
+  const withoutManagedBlock=content=>content.replace(managedBlockPattern(),"").replace(legacyMarkerPattern(),"").trimEnd();
   const managedBlock=(path,label="Handwriting snapshot")=>{
     const src=path.split("/").map(encodeURIComponent).join("/");
-    return `${START}\n\n<div class="handwriting-portable-snapshot" data-handwriting-portable-snapshot="true">\n<img src="${src}" alt="${label}">\n</div>\n\n${END}`;
+    return `<div class="handwriting-portable-snapshot" data-handwriting-portable-snapshot="true">\n<img src="${src}" alt="${label}">\n</div>`;
   };
   const styleProperties=[
     "box-sizing","display","position","top","right","bottom","left","width","height","min-width","min-height","max-width","max-height",
@@ -293,10 +292,15 @@ var HandwritingPortableSnapshots=(()=>{
       this.publishing.add(file.path);
       try{
         await this.app.vault.process(file,current=>{
-          const matches=[...current.matchAll(new RegExp(`${escapeRe(START)}[\\s\\S]*?${escapeRe(END)}`,"g"))];
+          const matches=[...current.matchAll(managedBlockPattern())];
           if(matches.length>1)throw new Error("multiple portable snapshot blocks found");
-          if(matches.length===1)return `${current.slice(0,matches[0].index).trimEnd()}\n\n${block}\n${current.slice(matches[0].index+matches[0][0].length).trimStart()}`.trimEnd()+"\n";
-          return `${current.trimEnd()}\n\n${block}\n`;
+          if(matches.length===1){
+            const match=matches[0];
+            const before=current.slice(0,match.index).replace(legacyMarkerPattern(),"");
+            const after=current.slice(match.index+match[0].length).replace(legacyMarkerPattern(),"");
+            return `${before.trimEnd()}\n\n${block}\n${after.trimStart()}`.trimEnd()+"\n";
+          }
+          return `${withoutManagedBlock(current)}\n\n${block}\n`;
         });
       }finally{setTimeout(()=>this.publishing.delete(file.path),500)}
     }
@@ -305,10 +309,11 @@ var HandwritingPortableSnapshots=(()=>{
       this.publishing.add(file.path);
       try{
         await this.app.vault.process(file,current=>{
-          const matches=[...current.matchAll(new RegExp(`${escapeRe(START)}[\\s\\S]*?${escapeRe(END)}\\s*`,"g"))];
+          const matches=[...current.matchAll(managedBlockPattern())];
           if(matches.length>1)throw new Error("multiple portable snapshot blocks found");
-          if(matches.length===0)return current;
-          return `${current.slice(0,matches[0].index).trimEnd()}\n${current.slice(matches[0].index+matches[0][0].length).trimStart()}`.replace(/\n{3,}/g,"\n\n");
+          if(matches.length===0&&!legacyMarkerPattern().test(current))return current;
+          const cleaned=withoutManagedBlock(current);
+          return cleaned?`${cleaned}\n`:"";
         });
       }finally{setTimeout(()=>this.publishing.delete(file.path),500)}
     }

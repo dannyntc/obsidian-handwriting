@@ -15,7 +15,7 @@ const checks = [
   ["pane clipping rule", css.includes(".handwriting-note-viewport-pane")],
   ["readout reset label", main.includes("Reset note zoom to 100%")],
   ["portable snapshot manager", main.includes("HandwritingPortableSnapshots")],
-  ["portable snapshot markers", main.includes("handwriting-portable-snapshot:start") && main.includes("handwriting-portable-snapshot:end")],
+  ["portable snapshot data block", main.includes('data-handwriting-portable-snapshot="true"') && main.includes("managedBlockPattern")],
   ["portable snapshot attachment folder", main.includes("Handwriting snapshots")],
   ["portable snapshot note update", main.includes("vault.process(file")],
   ["portable snapshot refresh command", main.includes("handwriting-refresh-portable-snapshot")],

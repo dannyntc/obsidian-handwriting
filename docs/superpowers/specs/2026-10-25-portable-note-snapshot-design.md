@@ -7,12 +7,12 @@ Keep a readable copy of handwritten notes available in Obsidian when the Handwri
 ## Storage contract
 
 - Editable strokes remain in the existing `.handwriting` sidecar JSON files.
-- Inked Markdown notes receive a managed block marked by:
-  - `<!-- handwriting-portable-snapshot:start -->`
-  - `<!-- handwriting-portable-snapshot:end -->`
-- The block contains a relative Markdown image link to an SVG in `Handwriting snapshots/<page-id>/`.
+- Inked Markdown notes receive a comment-free managed HTML block identified by `data-handwriting-portable-snapshot="true"`.
+- The block contains a relative image link to an SVG in `Handwriting snapshots/<page-id>/`.
 - Each published snapshot gets a new immutable filename. Failed publication leaves the previous link intact.
 - When the last stroke is erased, the managed block is removed while old attachment files remain recoverable.
+
+Legacy `1.5.0` blocks wrapped in `handwriting-portable-snapshot:start/end` HTML comments are recognized and migrated during the next snapshot refresh.
 
 ## Rendering
 
