@@ -71,6 +71,7 @@ var HandwritingCommittedSvg = (() => {
     );
     const layers = { pen, highlighter };
     const nodes = new Map();
+    const nodeLayers = new Map();
     const geometryCache = new Map();
     let lastStrokes = [];
     let mode = "canvas";
@@ -83,7 +84,18 @@ var HandwritingCommittedSvg = (() => {
       visiblePen: 0,
       visibleHighlighter: 0,
       lastMs: 0,
+      lastIncrementalMs: 0,
+      incrementalUpserts: 0,
+      attributeWrites: 0,
       lastError: null,
+    };
+
+    const setAttributeIfChanged = (node, name, value) => {
+      const next = text(value);
+      if (node.getAttribute?.(name) === next) return false;
+      node.setAttribute(name, next);
+      stats.attributeWrites++;
+      return true;
     };
 
     const setLayerVisibility = () => {
@@ -131,7 +143,59 @@ var HandwritingCommittedSvg = (() => {
       const node = nodes.get(key);
       if (node) node.remove?.();
       nodes.delete(key);
+      nodeLayers.delete(key);
       geometryCache.delete(key);
+    };
+
+    const renderStroke = stroke => {
+      if (!stroke) return { key: "", visible: false, created: false };
+      const key = strokeKey(stroke);
+      const layerName = layerFor(stroke);
+      const layer = layers[layerName];
+      const wasVisible = nodes.has(key);
+      if (!visible(stroke)) {
+        removeKey(key);
+        return { key, visible: false, created: wasVisible };
+      }
+      const revision = options.revision ? options.revision(stroke) : fallbackRevision(stroke);
+      let record = geometryCache.get(key);
+      if (!record || record.revision !== revision) {
+        const d = options.path?.(stroke);
+        if (typeof d !== "string" || d.trim() === "") {
+          removeKey(key);
+          return { key, visible: false, created: wasVisible };
+        }
+        record = { revision, d };
+        geometryCache.set(key, record);
+        stats.geometryMisses++;
+      } else {
+        stats.geometryHits++;
+      }
+      let node = nodes.get(key);
+      let created = false;
+      if (!node) {
+        node = doc.createElementNS(SVG_NS, "path");
+        setAttributeIfChanged(node, "fill-rule", "nonzero");
+        setStyle(node, "pointerEvents", "none");
+        nodes.set(key, node);
+        nodeLayers.set(key, layerName);
+        stats.pathsCreated++;
+        created = true;
+      }
+      setAttributeIfChanged(node, "d", record.d);
+      setAttributeIfChanged(node, "fill", options.color?.(stroke) ?? stroke.color ?? "#000000");
+      if (node.parentNode !== layer) layer.appendChild(node);
+      return { key, visible: true, created };
+    };
+
+    const refreshVisibleCounts = () => {
+      let visiblePen = 0;
+      let visibleHighlighter = 0;
+      for (const layerName of nodeLayers.values()) {
+        layerName === "highlighter" ? visibleHighlighter++ : visiblePen++;
+      }
+      stats.visiblePen = visiblePen;
+      stats.visibleHighlighter = visibleHighlighter;
     };
 
     const reconcile = (strokes = []) => {
@@ -143,36 +207,10 @@ var HandwritingCommittedSvg = (() => {
         const nextStrokes = Array.isArray(strokes) ? strokes : [];
         lastStrokes = nextStrokes.slice();
         for (const stroke of nextStrokes) {
-          if (!stroke || !visible(stroke)) continue;
-          const key = strokeKey(stroke);
-          const layerName = layerFor(stroke);
-          const layer = layers[layerName];
-          const revision = options.revision ? options.revision(stroke) : fallbackRevision(stroke);
-          let record = geometryCache.get(key);
-          if (!record || record.revision !== revision) {
-            const d = options.path?.(stroke);
-            if (typeof d !== "string" || d.trim() === "") {
-              removeKey(key);
-              continue;
-            }
-            record = { revision, d };
-            geometryCache.set(key, record);
-            stats.geometryMisses++;
-          } else {
-            stats.geometryHits++;
-          }
-          let node = nodes.get(key);
-          if (!node) {
-            node = doc.createElementNS(SVG_NS, "path");
-            node.setAttribute("fill-rule", "nonzero");
-            setStyle(node, "pointerEvents", "none");
-            nodes.set(key, node);
-            stats.pathsCreated++;
-          }
-          node.setAttribute("d", record.d);
-          node.setAttribute("fill", text(options.color?.(stroke) ?? stroke.color ?? "#000000"));
-          layer.appendChild(node);
-          active.add(key);
+          const rendered = renderStroke(stroke);
+          if (!rendered.visible) continue;
+          active.add(rendered.key);
+          const layerName = nodeLayers.get(rendered.key);
           layerName === "highlighter" ? visibleHighlighter++ : visiblePen++;
         }
         for (const key of [...nodes.keys()]) {
@@ -191,11 +229,30 @@ var HandwritingCommittedSvg = (() => {
       }
     };
 
-    const upsertCommitted = stroke => {
-      const key = strokeKey(stroke);
-      const next = lastStrokes.filter(item => strokeKey(item) !== key);
-      next.push(stroke);
-      reconcile(next);
+    const upsertCommitted = strokes => {
+      const started = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+      const nextStrokes = Array.isArray(strokes) ? strokes.filter(Boolean) : [strokes].filter(Boolean);
+      try {
+        for (const stroke of nextStrokes) {
+          const key = strokeKey(stroke);
+          const previousIndex = lastStrokes.findIndex(item => strokeKey(item) === key);
+          if (previousIndex >= 0) lastStrokes[previousIndex] = stroke;
+          else lastStrokes.push(stroke);
+          const rendered = renderStroke(stroke);
+          if (!rendered.visible) continue;
+          const oppositeKey = `${rendered.key.startsWith("highlighter:") ? "pen" : "highlighter"}:${text(stroke.id)}`;
+          if (oppositeKey !== rendered.key && nodes.has(oppositeKey)) removeKey(oppositeKey);
+        }
+        refreshVisibleCounts();
+        stats.incrementalUpserts += nextStrokes.length;
+        stats.lastError = null;
+      } catch (error) {
+        stats.lastError = String(error);
+        throw error;
+      } finally {
+        const ended = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+        stats.lastIncrementalMs = Math.max(0, ended - started);
+      }
     };
 
     const clear = () => {
@@ -204,6 +261,7 @@ var HandwritingCommittedSvg = (() => {
       stats.visiblePen = 0;
       stats.visibleHighlighter = 0;
       lastStrokes = [];
+      nodeLayers.clear();
     };
 
     const setMode = next => {
@@ -222,6 +280,9 @@ var HandwritingCommittedSvg = (() => {
       geometryHits: stats.geometryHits,
       geometryMisses: stats.geometryMisses,
       lastMs: stats.lastMs,
+      lastIncrementalMs: stats.lastIncrementalMs,
+      incrementalUpserts: stats.incrementalUpserts,
+      attributeWrites: stats.attributeWrites,
       lastError: stats.lastError,
     });
 

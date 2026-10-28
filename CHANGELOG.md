@@ -1,13 +1,17 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.7.1`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.7.2`.
 
-## 1.7.1 — 2026-10-28
+## 1.7.2 — 2026-10-28
 
 ### Fixed
 
-- External settled SVG ink is clipped to the note root and uses the owning note's local stacking context.
-- Zoom-report ancestor inspection stops at element nodes, allowing **Diagnostics: show zoom report** to open while External is enabled.
+- Completed SVG ink now lives in one permanent host inside the owning Markdown note, outside the scaled editor. The host is clipped to the note viewport and stays below note tools, sidebars, and other app UI.
+- SVG layers are created in that host once and are no longer reparented during repaint, scroll, pinch zoom, or Pencil interaction, preventing stale alignment and overlap during transitions.
+- Unsupported note-root transforms and invalid SVG mappings fall back to the existing Canvas presentation instead of mounting ink on `document.body`.
+- Removed the obsolete **Settled SVG presentation** experiment setting; completed SVG presentation is now automatic when **Completed handwriting → SVG (sharp)** is selected.
+- Zoom-report ancestor inspection stops at element nodes, so **Diagnostics: show zoom report** remains available with the permanent layer.
+- Pencil-lift publication now upserts only the newly completed stroke, reuses unchanged path nodes and geometry, and keeps a valid SVG host visible during ordinary repainting. The zoom report includes the latest SVG handoff time and incremental-render counters.
 
 ## 1.7.0 — 2026-10-28
 

@@ -20,6 +20,7 @@ class Node {
     this.style = {};
     this.parentNode = null;
     this.className = "";
+    this.appendCount = 0;
   }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
@@ -27,6 +28,7 @@ class Node {
     if (child.parentNode) child.parentNode.removeChild(child);
     child.parentNode = this;
     this.children.push(child);
+    this.appendCount++;
     return child;
   }
   insertBefore(child, before) {
@@ -55,6 +57,7 @@ const beforePen = new Node("canvas");
 root.appendChild(beforeHighlighter);
 root.appendChild(beforePen);
 
+let pathCalls = 0;
 const paths = new Map([
   ["pen-1", "M 0 0 L 10 10 Z"],
   ["pen-2", "M 20 20 L 30 30 Z"],
@@ -64,7 +67,10 @@ const renderer = api.create(root, {
   document: doc,
   highlighterBefore: beforeHighlighter,
   penBefore: beforePen,
-  path: stroke => paths.get(stroke.id),
+  path: stroke => {
+    pathCalls++;
+    return paths.get(stroke.id);
+  },
   color: stroke => stroke.color,
   revision: stroke => stroke.revision,
 });
@@ -101,8 +107,32 @@ if (renderer.pen.children[0].getAttribute("d") !== paths.get("pen-1")) {
 }
 
 const penNode = renderer.pen.children[0];
+const penAppendsBeforeStableReconcile = penNode.appendCount;
+const pathCallsBeforeStableReconcile = pathCalls;
 renderer.reconcile([{ ...strokes[0], revision: 1 }, strokes[1]]);
 if (renderer.pen.children[0] !== penNode) throw new Error("unchanged stroke node was recreated");
+if (penNode.appendCount !== penAppendsBeforeStableReconcile) {
+  throw new Error("unchanged stroke node was re-appended during reconciliation");
+}
+if (pathCalls !== pathCallsBeforeStableReconcile) {
+  throw new Error("unchanged stroke geometry was regenerated during reconciliation");
+}
+
+const newStroke = { id: "pen-2", tool: "pen", color: "#357", revision: 1, bbox: { x: 20, y: 20, width: 10, height: 10 } };
+const pathCallsBeforeIncremental = pathCalls;
+renderer.upsertCommitted(newStroke);
+if (pathCalls !== pathCallsBeforeIncremental + 1) {
+  throw new Error("incremental commit regenerated more than the new stroke");
+}
+if (renderer.pen.children.length !== 2 || renderer.pen.children[1].getAttribute("d") !== paths.get("pen-2")) {
+  throw new Error("incremental commit did not publish the new pen path");
+}
+if (penNode.appendCount !== penAppendsBeforeStableReconcile) {
+  throw new Error("incremental commit re-appended an existing pen path");
+}
+if (renderer.report().incrementalUpserts !== 1) {
+  throw new Error("incremental commit was not recorded");
+}
 
 renderer.reconcile([{ ...strokes[0], revision: 2, color: "#135" }]);
 if (renderer.pen.children[0] !== penNode) throw new Error("changed stroke node was recreated");

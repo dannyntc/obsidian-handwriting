@@ -11,26 +11,44 @@ const required = [
   "completedInkRenderer",
   "setMode(t)",
   "t.reconcile(e??this.committedSvgStrokes())",
+  "upsertCommitted",
+  "reconcileCommittedSvg(e,o={})",
+  "this.reconcileCommittedSvg(r,{priority:!0})",
+  "committedSvgLastGeneration",
+  "lastSvgHandoffMs",
   "completedInkRenderer",
   "HandwritingSettledSvgPresentation",
   "handwriting-settled-svg-host",
   "settledSvgPresentation=null",
-  "settledSvgPresentationObserver=null",
   "HandwritingSettledSvgPresentation.create",
   'presentationRoot:this.view.dom.closest(".markdown-source-view")',
-  "settledSvgPresentationObserver?.observe",
-  "settledSvgPresentationObserver?.disconnect",
+  "layerRoot",
+  "scrollElement:n",
+  "t.update({sourceRect:r,clipRect:s,presentationRootRect:a,viewBox:l})",
   "applySettledSvgPresentation",
-  "scheduleSettledSvgPresentation",
   "exitSettledSvgPresentation",
   "settledSvgPresentation?.dispose",
-  'settledSvgPresentation:"editor"',
+  'settledSvgPresentationMode="permanent"',
+  "settledSvgPresentationFallbackNoticed",
+  "svg-fallback",
 ];
 const failures = required.filter(fragment => !main.includes(fragment));
 if (failures.length) throw new Error(`committed SVG integration is missing: ${failures.join(", ")}`);
 if (!main.includes(source)) throw new Error("committed SVG source is not injected verbatim");
 if (!main.includes(settledSource)) throw new Error("settled SVG presentation source is not injected verbatim");
 if (main.includes('externalParent:t.ownerDocument.body')) throw new Error("settled SVG presentation still mounts on document.body");
+if (main.includes("settledSvgPresentationObserver")) throw new Error("settled SVG presentation still owns a resize observer loop");
+if (main.includes("settledSvgPresentation.enter")) throw new Error("settled SVG presentation still reparents layers on settle");
+if (main.includes('repaint(){this.exitSettledSvgPresentation("repaint")')) {
+  throw new Error("ordinary repaint still hides the settled SVG host");
+}
+if (main.includes('settledSvgPresentation:"editor"') || main.includes('settledSvgPresentation:e?.')) {
+  throw new Error("legacy settled SVG setting is still active");
+}
+if (main.includes("j.settledSvgPresentation=") || main.includes("applySettledSvgPresentation?.")) {
+  throw new Error("legacy settled SVG runtime setting is still active");
+}
+if (main.includes("Settled SVG presentation")) throw new Error("legacy settled SVG setting is still shown");
 if (!main.includes("/* BEGIN HANDWRITING COMMITTED SVG */") || !main.includes("/* END HANDWRITING COMMITTED SVG */")) {
   throw new Error("committed SVG injection markers are missing");
 }

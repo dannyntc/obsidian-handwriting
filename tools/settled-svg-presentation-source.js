@@ -1,9 +1,14 @@
 /*
- * Moves the existing completed SVG layers out of a transformed editor host
- * while the note is idle. The layers are never cloned, so their keyed path
- * nodes and geometry cache remain owned by HandwritingCommittedSvg.
+ * Owns one permanent, note-local host for completed SVG ink.
+ *
+ * The host is created beside the scaled Markdown editor, not inside it. SVG
+ * layers are attached once and stay there; updates only change the host
+ * rectangle and the cropped viewBox. Wet ink, hit testing, and stroke data
+ * remain owned by the controller and HandwritingCommittedSvg.
  */
 var HandwritingSettledSvgPresentation = (() => {
+  const rootRecords = new WeakMap();
+
   const finite = (value, fallback) => Number.isFinite(value) ? value : fallback;
 
   const rect = value => {
@@ -60,6 +65,15 @@ var HandwritingSettledSvgPresentation = (() => {
 
   const element = node => node?.nodeType === 1 ? node : null;
 
+  const contains = (root, node) => {
+    if (!root || !node) return false;
+    if (typeof root.contains === "function") return root.contains(node);
+    for (let current = node; current; current = current.parentElement) {
+      if (current === root) return true;
+    }
+    return false;
+  };
+
   const localRect = (viewportRect, rootRect, root) => {
     const viewport = rect(viewportRect);
     const rootBounds = rect(rootRect);
@@ -76,168 +90,210 @@ var HandwritingSettledSvgPresentation = (() => {
     };
   };
 
-  const create = options => {
-    const doc = options?.document ?? options?.layers?.pen?.ownerDocument;
-    const layers = [options?.layers?.highlighter, options?.layers?.pen].filter(Boolean);
-    const presentationRoot = options?.presentationRoot ?? options?.externalParent;
-    if (!doc || !element(presentationRoot) || layers.length === 0) {
-      throw new Error("HandwritingSettledSvgPresentation requires a document, element root, and SVG layers");
+  const rootTransforms = (root, windowRef) => {
+    const transforms = [];
+    for (let node = root; element(node); node = node.parentElement) {
+      const transform = windowRef?.getComputedStyle?.(node)?.transform;
+      if (transform && transform !== "none") transforms.push(transform);
+    }
+    return transforms;
+  };
+
+  const acquireRoot = (root, windowRef) => {
+    const existing = rootRecords.get(root);
+    if (existing) {
+      existing.count++;
+      return existing;
     }
 
+    const style = root.style ?? {};
+    const computed = windowRef?.getComputedStyle?.(root) ?? {};
+    const saved = {
+      position: style.position ?? "",
+      isolation: style.isolation ?? "",
+    };
+    const positionPatched = computed.position === "static";
+    const isolationPatched = computed.isolation !== "isolate";
+    if (positionPatched) setStyle(root, "position", "relative");
+    if (isolationPatched) setStyle(root, "isolation", "isolate");
+
+    const record = { count: 1, saved, positionPatched, isolationPatched };
+    rootRecords.set(root, record);
+    return record;
+  };
+
+  const releaseRoot = (root, record) => {
+    if (!record || record.count <= 0) return;
+    record.count--;
+    if (record.count > 0) return;
+    if (record.positionPatched && (root.style?.position ?? "") === "relative") {
+      setStyle(root, "position", record.saved.position);
+    }
+    if (record.isolationPatched && (root.style?.isolation ?? "") === "isolate") {
+      setStyle(root, "isolation", record.saved.isolation);
+    }
+    rootRecords.delete(root);
+  };
+
+  const create = options => {
+    const doc = options?.document ?? options?.presentationRoot?.ownerDocument;
+    const presentationRoot = options?.presentationRoot;
+    const editor = options?.editor;
+    const scrollElement = options?.scrollElement;
+    const windowRef = options?.window ?? doc?.defaultView;
+    if (!doc || !element(presentationRoot) || presentationRoot.ownerDocument !== doc) {
+      throw new Error("HandwritingSettledSvgPresentation requires a note-root element and owner document");
+    }
+    if (presentationRoot.isConnected === false || editor && (!element(editor) || editor.ownerDocument !== doc || !contains(presentationRoot, editor)) || scrollElement && (!element(scrollElement) || scrollElement.ownerDocument !== doc || !contains(presentationRoot, scrollElement))) {
+      throw new Error("HandwritingSettledSvgPresentation requires an editor contained by the note root");
+    }
+
+    const rootRecord = acquireRoot(presentationRoot, windowRef);
     const host = doc.createElement("div");
-    const windowRef = options?.window ?? doc.defaultView;
-    const rootStyle = presentationRoot.style;
-    const rootComputedStyle = windowRef?.getComputedStyle?.(presentationRoot) ?? {};
-    const savedRootPosition = rootStyle?.position ?? "";
-    const savedRootIsolation = rootStyle?.isolation ?? "";
-    const rootPositionPatched = rootComputedStyle.position === "static";
-    const rootIsolationPatched = rootComputedStyle.isolation !== "isolate";
-    if (rootPositionPatched) setStyle(presentationRoot, "position", "relative");
-    if (rootIsolationPatched) setStyle(presentationRoot, "isolation", "isolate");
     host.className = "handwriting-settled-svg-host";
     host.setAttribute?.("aria-hidden", "true");
     setStyle(host, "position", "absolute");
     setStyle(host, "pointerEvents", "none");
     setStyle(host, "overflow", "hidden");
+    setStyle(host, "contain", "layout paint");
     setStyle(host, "zIndex", "1");
     setStyle(host, "display", "none");
     presentationRoot.appendChild(host);
 
-    const saved = new Map();
-    let presentationMode = "editor";
+    let layers = [];
     let disposed = false;
-    let lastExternalRect = null;
-    let lastPresentationRootRect = null;
+    let visible = false;
+    let lastRect = null;
+    let lastRootRect = null;
     let lastHostLocalRect = null;
     let lastViewBox = null;
     let lastReason = "initial";
+    let generation = 0;
+    let updateCount = 0;
+    let hideCount = 0;
 
-    const ancestorTransforms = () => {
-      const transforms = [];
-      for (let node = host; element(node); node = node.parentElement) {
-        const transform = windowRef?.getComputedStyle?.(node)?.transform;
-        if (transform && transform !== "none") transforms.push(transform);
-      }
-      return transforms;
-    };
-
-    const saveLayer = layer => {
-      if (saved.has(layer)) return;
-      saved.set(layer, {
-        parent: layer.parentNode,
-        nextSibling: layer.nextSibling ?? null,
-        viewBox: layer.getAttribute?.("viewBox"),
-        width: layer.getAttribute?.("width"),
-        height: layer.getAttribute?.("height"),
-      });
-    };
-
-    const restoreLayer = (layer, record) => {
-      if (record.parent) {
-        const next = record.nextSibling && record.nextSibling.parentNode === record.parent
-          ? record.nextSibling
-          : null;
-        record.parent.insertBefore(layer, next);
-      }
-      if (record.viewBox === null || record.viewBox === undefined) layer.removeAttribute?.("viewBox");
-      else layer.setAttribute("viewBox", record.viewBox);
-      if (record.width === null || record.width === undefined) layer.removeAttribute?.("width");
-      else layer.setAttribute("width", record.width);
-      if (record.height === null || record.height === undefined) layer.removeAttribute?.("height");
-      else layer.setAttribute("height", record.height);
-    };
-
-    const exit = reason => {
-      if (presentationMode !== "external") return false;
-      for (const layer of layers) {
-        const record = saved.get(layer);
-        if (record) restoreLayer(layer, record);
-      }
+    const setHidden = reason => {
       setStyle(host, "display", "none");
-      presentationMode = "editor";
-      lastReason = reason ?? "restore-editor";
-      lastExternalRect = null;
-      lastPresentationRootRect = null;
-      lastHostLocalRect = null;
-      lastViewBox = null;
-      saved.clear();
+      visible = false;
+      lastReason = reason ?? "hidden";
+      hideCount++;
+    };
+
+    const attach = nextLayers => {
+      if (disposed) return false;
+      const next = [nextLayers?.highlighter, nextLayers?.pen].filter(Boolean);
+      if (next.length === 0 || next.some(layer => !element(layer) || layer.ownerDocument !== doc)) {
+        lastReason = "invalid-layers";
+        return false;
+      }
+      if (layers.length > 0 && next.some((layer, index) => layer !== layers[index])) {
+        lastReason = "layer-set-changed";
+        return false;
+      }
+      for (const layer of next) {
+        if (layer.parentNode !== host) host.appendChild(layer);
+      }
+      layers = next;
       return true;
     };
 
-    const enter = input => {
+    const update = input => {
       if (disposed) return false;
-      if (presentationMode === "external") exit("refresh-external");
+      if (layers.length === 0) {
+        setHidden("layers-not-attached");
+        return false;
+      }
+      const transforms = rootTransforms(presentationRoot, windowRef);
+      if (transforms.length > 0) {
+        setHidden("unsupported-root-transform");
+        return false;
+      }
       const source = rect(input?.sourceRect);
-      const clipSource = input?.clipRect ?? options.clip?.(source);
       const rootRect = rect(input?.presentationRootRect ?? presentationRoot.getBoundingClientRect?.());
-      const clip = intersect(intersect(source, clipSource), rootRect);
-      if (!source || !clip) {
-        lastReason = "invalid-rect";
+      let clip = rect(input?.clipRect ?? options?.clip?.() ?? scrollElement?.getBoundingClientRect?.());
+      const clipRects = Array.isArray(input?.clipRects) ? input.clipRects : [];
+      for (const nextClip of clipRects) clip = clip ? intersect(clip, nextClip) : rect(nextClip);
+      clip = clip ? intersect(clip, rootRect) : null;
+      if (!source || !rootRect || !clip) {
+        setHidden("invalid-rect");
         return false;
       }
       const hostLocalRect = localRect(clip, rootRect, presentationRoot);
       if (!hostLocalRect) {
-        lastReason = "invalid-root-rect";
+        setHidden("invalid-root-rect");
         return false;
       }
 
-      const layerViewBoxes = layers.map(layer => computeViewBox(
-        source,
-        clip,
-        layer.getAttribute?.("viewBox"),
-      ));
-      if (layerViewBoxes.some(value => !value)) {
-        lastReason = "invalid-viewbox";
+      const suppliedViewBoxes = input?.viewBoxes ?? {};
+      const viewBoxes = layers.map((layer, index) => {
+        const name = index === 0 ? "highlighter" : "pen";
+        return suppliedViewBoxes[name] ?? input?.viewBox ?? layer.getAttribute?.("viewBox");
+      });
+      const cropped = viewBoxes.map(value => computeViewBox(source, clip, value));
+      if (cropped.some(value => !value)) {
+        setHidden("invalid-viewbox");
         return false;
       }
 
-      for (const layer of layers) saveLayer(layer);
       setStyle(host, "left", `${hostLocalRect.left}px`);
       setStyle(host, "top", `${hostLocalRect.top}px`);
       setStyle(host, "width", `${hostLocalRect.width}px`);
       setStyle(host, "height", `${hostLocalRect.height}px`);
       for (let index = 0; index < layers.length; index++) {
         const layer = layers[index];
-        layer.setAttribute("viewBox", layerViewBoxes[index]);
+        layer.setAttribute("viewBox", cropped[index]);
         layer.setAttribute("width", String(clip.width));
         layer.setAttribute("height", String(clip.height));
-        host.appendChild(layer);
       }
       setStyle(host, "display", "block");
-      presentationMode = "external";
-      lastExternalRect = clip;
-      lastPresentationRootRect = rootRect;
+      visible = true;
+      updateCount++;
+      generation++;
+      lastRect = clip;
+      lastRootRect = rootRect;
       lastHostLocalRect = hostLocalRect;
-      lastViewBox = layerViewBoxes[1] ?? layerViewBoxes[0];
-      lastReason = "external";
+      lastViewBox = cropped[1] ?? cropped[0];
+      lastReason = "updated";
       return true;
+    };
+
+    const hide = reason => {
+      if (disposed) return false;
+      const wasVisible = visible;
+      setHidden(reason);
+      return wasVisible;
     };
 
     const dispose = () => {
       if (disposed) return;
-      exit("dispose");
+      setHidden("dispose");
       host.remove?.();
-      if (rootPositionPatched) setStyle(presentationRoot, "position", savedRootPosition);
-      if (rootIsolationPatched) setStyle(presentationRoot, "isolation", savedRootIsolation);
-      saved.clear();
+      releaseRoot(presentationRoot, rootRecord);
       disposed = true;
     };
 
     return {
       host,
-      enter,
-      exit,
+      layerRoot: host,
+      attach,
+      update,
+      hide,
       dispose,
-      mode: () => presentationMode,
+      mode: () => visible ? "permanent" : "hidden",
       report: () => ({
-        mode: presentationMode,
-        rect: lastExternalRect,
-        presentationRootRect: lastPresentationRootRect,
+        mode: visible ? "permanent" : "hidden",
+        visible,
+        rect: lastRect,
+        presentationRootRect: lastRootRect,
         hostLocalRect: lastHostLocalRect,
         viewBox: lastViewBox,
         reason: lastReason,
+        generation,
+        updateCount,
+        hideCount,
         hostRect: host.getBoundingClientRect?.() ?? null,
-        ancestorTransforms: ancestorTransforms(),
+        ancestorTransforms: rootTransforms(presentationRoot, windowRef),
+        layerParents: layers.map(layer => layer.parentNode === host),
       }),
     };
   };

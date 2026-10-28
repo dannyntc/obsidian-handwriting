@@ -3,7 +3,7 @@ const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
 const source = fs.readFileSync("tools/fountain-ink-source.js", "utf8").trim();
 const main = fs.readFileSync("main.js", "utf8");
 
-if (manifest.version !== "1.7.1") throw new Error(`unexpected manifest version: ${manifest.version}`);
+if (manifest.version !== "1.7.2") throw new Error(`unexpected manifest version: ${manifest.version}`);
 if (!main.includes("/* BEGIN HANDWRITING FOUNTAIN INK */") || !main.includes("/* END HANDWRITING FOUNTAIN INK */")) {
   throw new Error("fountain source markers are missing");
 }
