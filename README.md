@@ -4,7 +4,7 @@ An Obsidian community plugin for handwriting, highlighting, erasing, and lasso s
 
 ## Current release
 
-Version `1.7.2`.
+Version `1.8.0`.
 
 This release includes:
 
@@ -17,6 +17,7 @@ This release includes:
 - A permanent note-local SVG layer for completed handwriting. It stays outside the scaled editor for crisp 100–150% presentation, remains clipped to the note viewport, and cannot cover sidebars or app chrome. Canvas remains available as the compatibility fallback and continues to handle live Pencil ink.
 - Portable SVG snapshots stored in a comment-free managed HTML block, keeping handwritten notes readable when the plugin is disabled or removed.
 - Editable handwriting preserved in the plugin's `.handwriting` sidecar storage when the plugin is re-enabled.
+- After an erase gesture ends, the selected tool automatically returns to the pen or highlighter that was active before erasing.
 
 See [CHANGELOG.md](CHANGELOG.md) for the reconstructed release history.
 
@@ -68,6 +69,10 @@ node --check tools/verify-committed-svg.cjs
 node --check tools/verify-committed-svg-integration.cjs
 node --check tools/verify-handwriting-zoom.cjs
 node --check tools/verify-portable-snapshot.cjs
+node --check tools/eraser-tool-restore-source.js
+node --check tools/inject-eraser-tool-restore.cjs
+node --check tools/patch-eraser-tool-restore.cjs
+node --check tools/verify-eraser-tool-restore.cjs
 node tools/verify-handwriting-raster.cjs
 node tools/verify-handwriting-resize.cjs
 node tools/verify-handwriting-render-quality.cjs
@@ -79,6 +84,7 @@ node tools/verify-committed-svg-integration.cjs
 node tools/verify-settled-svg-presentation.cjs
 node tools/verify-handwriting-zoom.cjs
 node tools/verify-portable-snapshot.cjs
+node tools/verify-eraser-tool-restore.cjs
 ```
 
 For the rendering investigation, install the three distributable files, enable **Developer diagnostics**, reload the plugin, and run **Diagnostics: compare handwriting rendering**. Check the synthetic fixture and the last-stroke replay at 100%, 125%, and 150%, then use **Copy report** for the measured canvas and compositing data.

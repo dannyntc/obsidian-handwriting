@@ -1,6 +1,12 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.7.2`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.0`.
+
+## 1.8.0 — 2026-10-28
+
+### Changed
+
+- Completing an eraser gesture with Pencil now restores the previously selected pen or highlighter mode. The restore also occurs for an empty erase, while explicitly choosing another tool or cancelling the eraser clears the pending restore.
 
 ## 1.7.2 — 2026-10-28
 
