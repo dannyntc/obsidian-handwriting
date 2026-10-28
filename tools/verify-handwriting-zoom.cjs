@@ -21,6 +21,11 @@ const checks = [
   ["portable snapshot refresh command", main.includes("handwriting-refresh-portable-snapshot")],
   ["portable snapshot unload flush", main.includes("portableSnapshots?.flush")],
   ["portable snapshot hidden while plugin runs", main.includes("handwriting-installed") && css.includes(".handwriting-portable-snapshot")],
+  ["adaptive raster overscan", main.includes("function handwritingRasterBandOverscan(") && main.includes("rasterScale:this.rasterTargetForBand()")],
+  ["raster quality diagnostics", main.includes("raster target / allocated") && main.includes("rasterLimited")],
+  ["resize variable is scoped", main.includes("this.rasterLimited=d+1e-6<this.rasterTarget;let p=")],
+  ["render quality comparison command", main.includes("compare-inline-rendering") && main.includes("HandwritingRenderDiagnostics.open")],
+  ["render quality report geometry", main.includes("effective backing per CSS px") && main.includes("ancestor transforms")],
 ];
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);

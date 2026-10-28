@@ -20,11 +20,22 @@
 
 .handwriting-paper,
 .handwriting-committed,
+.handwriting-committed-svg,
 .handwriting-wet,
 .handwriting-tail {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
+}
+
+/* Settled SVG ink is positioned in note-root coordinates by the presentation
+   manager. The host stays outside the scaled editor while remaining inside
+   the note's local stacking context, so it cannot cover app chrome. */
+.handwriting-settled-svg-host {
+	position: absolute;
+	contain: layout paint;
+	overflow: hidden;
+	z-index: 1;
 }
 
 .handwriting-paper {
@@ -3248,4 +3259,75 @@ body.handwriting-installed .handwriting-portable-snapshot { display:none !import
 .view-action.handwriting-canvas-action.is-active {
 	color: var(--text-on-accent);
 	background-color: var(--interactive-accent);
+}
+
+/* Opt-in renderer comparison modal. It is intentionally isolated from the
+   note viewport so opening diagnostics cannot change ordinary ink layout. */
+.handwriting-render-quality-modal .modal-content {
+	max-width: min(980px, calc(100vw - 32px));
+}
+.handwriting-render-quality-controls {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 12px 0;
+}
+.handwriting-render-quality-controls span {
+	margin-left: 8px;
+	font-weight: 600;
+}
+.handwriting-render-quality-controls span:first-child {
+	margin-left: 0;
+}
+.handwriting-render-quality-caption,
+.handwriting-render-quality-note {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.handwriting-render-quality-stage-list {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	overflow-x: auto;
+}
+.handwriting-render-quality-card {
+	min-width: 280px;
+	padding: 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-secondary);
+}
+.handwriting-render-quality-card h3 {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+.handwriting-render-quality-stage {
+	position: relative;
+	overflow: hidden;
+	background: #fff;
+	border: 1px solid var(--background-modifier-border);
+}
+.handwriting-render-quality-stage canvas,
+.handwriting-render-quality-stage svg {
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+.handwriting-render-quality-report {
+	max-height: 260px;
+	margin-top: 14px;
+	padding: 10px;
+	overflow: auto;
+	white-space: pre-wrap;
+	font-size: var(--font-ui-small);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+}
+@media (max-width: 820px) {
+	.handwriting-render-quality-stage-list {
+		grid-template-columns: 1fr;
+	}
 }

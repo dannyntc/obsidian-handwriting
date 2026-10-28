@@ -1,6 +1,78 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.5.1`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.7.1`.
+
+## 1.7.1 — 2026-10-28
+
+### Fixed
+
+- External settled SVG ink is clipped to the note root and uses the owning note's local stacking context.
+- Zoom-report ancestor inspection stops at element nodes, allowing **Diagnostics: show zoom report** to open while External is enabled.
+
+## 1.7.0 — 2026-10-28
+
+### Fixed
+
+- Completed handwriting in Markdown note editors now uses inline SVG by default, removing the canvas resampling softness seen on iPad at 100–150% zoom.
+- Live Apple Pencil input remains on the low-latency canvas and hands off synchronously to the SVG layer when the stroke is lifted.
+
+### Added
+
+- A **Completed handwriting** setting with **SVG (sharp)** and **Canvas (compatibility)** choices.
+- A developer **Settled SVG presentation** experiment. **External** places idle completed SVG ink outside the scaled editor but inside the owning note's local stacking context; **Editor** remains the default until iPad interaction validation is complete.
+- Keyed SVG path reconciliation with camera-aware view boxes, separate pen/highlighter layers, geometry reuse, and Canvas fallback on renderer failure.
+- SVG renderer diagnostics in the existing zoom report.
+
+### Compatibility
+
+- Stroke storage, fountain/classic metadata, erasing, selection, undo/redo, portable snapshots, and export geometry remain based on the existing stroke model.
+- PDF and slide editors continue using their existing renderers.
+- Automated checks cover the SVG layer contract and bundle integration. iPad note-editor validation for erasing, selection, and long-note performance remains required before treating the release as fully accepted.
+
+## 1.6.0 — 2026-10-26
+
+### Added
+
+- Refined fountain-pen rendering for new Apple Pencil pen strokes.
+- Elapsed-time pressure filtering, restrained speed thinning, continuous width changes, rounded caps, and controlled release tapering.
+- Per-stroke `inkStyle: "fountain-v1"` metadata so saved handwriting keeps its rendering after settings changes, reloads, and exports.
+- A **Classic / Fountain pen** setting. Fountain pen is the default for new stylus strokes; existing strokes retain their stored renderer.
+
+### Changed
+
+- Live wet ink, settled canvas ink, portable SVG snapshots, and PDF vector output share the fountain stroke geometry.
+- Added deterministic fountain geometry, storage, and bundle integration checks.
+
+### Compatibility
+
+- Legacy strokes and unknown future style identifiers use the existing renderer and remain preserved by sidecar storage.
+- Classic can be selected for subsequent strokes if the refined style is not preferred.
+
+## 1.5.3 — 2026-10-26
+
+### Fixed
+
+- Scoped the resize comparison variable so canvas resize and redraw continue under strict mode.
+
+### Diagnostics
+
+- Added an opt-in rendering comparison for synthetic and last-stroke replays at 100%, 125%, and 150%.
+- Added current-raster, native-resolution-canvas, and same-geometry SVG views with copyable measurements.
+- Extended the zoom report with canvas-to-display ratios, fractional physical placement, ink-layer bounds, and ancestor-transform evidence.
+
+The comparison build is diagnostic. It preserves the existing pressure, width, stroke, and storage behaviour while the remaining baseline softness is measured on the affected iPad.
+
+## 1.5.2 — 2026-10-26
+
+### Fixed
+
+- Prevented 150% pinch-zoom handwriting from falling back to a lower-resolution backing raster when the default overscan band exceeded the canvas pixel budget.
+- Adapted the raster overscan band to the requested Retina-plus-zoom scale while preserving the existing memory ceiling and visible-region redraw behavior.
+
+### Performance
+
+- Replaced iterative overscan fitting with a closed-form calculation so pinch and scroll band updates avoid unnecessary per-frame search work.
+- Added raster target/allocation diagnostics to the existing zoom report for confirming when the memory ceiling is limiting resolution.
 
 ## 1.5.1 — 2026-10-25
 
