@@ -21,8 +21,9 @@ class Node {
     this.parentNode = null;
     this.className = "";
     this.appendCount = 0;
+    this.attributeWrites = 0;
   }
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  setAttribute(name, value) { this.attributeWrites++; this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
   appendChild(child) {
     if (child.parentNode) child.parentNode.removeChild(child);
@@ -69,7 +70,7 @@ const renderer = api.create(root, {
   penBefore: beforePen,
   path: stroke => {
     pathCalls++;
-    return paths.get(stroke.id);
+    return paths.get(stroke.id) ?? "M 0 0 L 1 1 Z";
   },
   color: stroke => stroke.color,
   revision: stroke => stroke.revision,
@@ -90,6 +91,9 @@ const strokes = [
   { id: "hl-1", tool: "highlighter", color: "#fc0", revision: 1, bbox: { x: 2, y: 2, width: 6, height: 6 } },
 ];
 renderer.setMode("svg");
+if (renderer.getMode?.() !== "svg") {
+  throw new Error("SVG renderer did not expose its lightweight mode state");
+}
 renderer.setViewport({ x: -5, y: -6, width: 100, height: 80, zoom: 1.5 });
 renderer.reconcile(strokes);
 
@@ -104,6 +108,28 @@ if (renderer.pen.children.length !== 1 || renderer.highlighter.children.length !
 }
 if (renderer.pen.children[0].getAttribute("d") !== paths.get("pen-1")) {
   throw new Error("pen path geometry was not assigned");
+}
+
+const viewportWrites = renderer.pen.attributeWrites + renderer.highlighter.attributeWrites;
+renderer.setViewport({ x: -5, y: -6, width: 100, height: 80, zoom: 1.5 });
+if (renderer.pen.attributeWrites + renderer.highlighter.attributeWrites !== viewportWrites) {
+  throw new Error("unchanged SVG viewport rewrote layer attributes");
+}
+if (renderer.getViewportViewBox() !== "-5 -6 66.66666666666667 53.333333333333336") {
+  throw new Error(`renderer did not expose its canonical viewport: ${renderer.getViewportViewBox()}`);
+}
+const viewportBeforePan = renderer.getViewportViewBox().split(" ").map(Number);
+renderer.setViewport({ x: 10, y: 20, width: 100, height: 80, zoom: 1.5 });
+const viewportAfterPan = renderer.getViewportViewBox().split(" ").map(Number);
+if (viewportAfterPan[2] !== viewportBeforePan[2] || viewportAfterPan[3] !== viewportBeforePan[3]
+  || viewportAfterPan[0] !== 10 || viewportAfterPan[1] !== 20) {
+  throw new Error("panning changed the canonical SVG scale");
+}
+renderer.setViewport({ x: 10, y: 20, width: 100, height: 80, zoom: 3 });
+const viewportAfterZoom = renderer.getViewportViewBox().split(" ").map(Number);
+if (Math.abs(viewportAfterZoom[2] - viewportAfterPan[2] / 2) > 1e-12
+  || Math.abs(viewportAfterZoom[3] - viewportAfterPan[3] / 2) > 1e-12) {
+  throw new Error("zoom did not change only the canonical viewport scale");
 }
 
 const penNode = renderer.pen.children[0];
@@ -138,7 +164,43 @@ renderer.reconcile([{ ...strokes[0], revision: 2, color: "#135" }]);
 if (renderer.pen.children[0] !== penNode) throw new Error("changed stroke node was recreated");
 if (renderer.pen.children[0].getAttribute("fill") !== "#135") throw new Error("stroke color was not updated");
 
+renderer.setViewport({ x: 0, y: 0, width: 10, height: 10, zoom: 1, overscan: 0 });
+const retainedStroke = { ...strokes[0], revision: 2, color: "#135" };
+renderer.reconcile([retainedStroke]);
+renderer.setViewport({ x: 20, y: 20, width: 10, height: 10, zoom: 1, overscan: 0 });
+renderer.reconcile([newStroke]);
+const pathCallsBeforeReturningToViewport = pathCalls;
+renderer.setViewport({ x: 0, y: 0, width: 10, height: 10, zoom: 1, overscan: 0 });
+renderer.reconcile([retainedStroke]);
+if (pathCalls !== pathCallsBeforeReturningToViewport) {
+  throw new Error("panning back to a retained viewport regenerated cached stroke geometry");
+}
+
+const coveredStroke = { id: "covered", tool: "pen", color: "#357", revision: 1, bbox: { x: 40, y: 40, width: 2, height: 2 } };
+renderer.setViewport({ x: 0, y: 0, width: 10, height: 10, zoom: 1, overscan: 0, coverage: { x: 0, y: 0, width: 50, height: 50 } });
+renderer.reconcile([coveredStroke]);
+if (renderer.pen.children.length !== 1 || renderer.pen.children[0].getAttribute("d") !== "M 0 0 L 1 1 Z") {
+  throw new Error("explicit retained SVG coverage was not used for stroke filtering");
+}
+
+const manyStrokes = Array.from({ length: 2050 }, (_, index) => ({
+  id: `many-${index}`,
+  tool: "pen",
+  color: "#135",
+  revision: 1,
+  bbox: { x: index, y: 0, width: 1, height: 1 },
+}));
+renderer.setViewport({ x: 0, y: 0, width: 2050, height: 10, zoom: 1, overscan: 0 });
+renderer.reconcile(manyStrokes);
+if (renderer.report().geometryCacheEntries > renderer.report().geometryCacheLimit
+  || renderer.report().geometryEvictions === 0) {
+  throw new Error("SVG geometry cache exceeded its bounded movement budget");
+}
+
 renderer.setMode("canvas");
+if (renderer.getMode?.() !== "canvas") {
+  throw new Error("Canvas fallback mode was not exposed by the lightweight renderer state");
+}
 if (renderer.pen.style.display !== "none" || renderer.highlighter.style.display !== "none") {
   throw new Error("Canvas mode did not hide completed SVG layers");
 }

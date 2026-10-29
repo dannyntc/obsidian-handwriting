@@ -63,6 +63,18 @@ var HandwritingSettledSvgPresentation = (() => {
     if (node?.style) node.style[property] = value;
   };
 
+  const sameRect = (first, second) => !!first && !!second
+    && first.left === second.left
+    && first.top === second.top
+    && first.width === second.width
+    && first.height === second.height;
+
+  const setStyleIfChanged = (node, property, value) => {
+    if (!node?.style || node.style[property] === value) return false;
+    node.style[property] = value;
+    return true;
+  };
+
   const element = node => node?.nodeType === 1 ? node : null;
 
   const contains = (root, node) => {
@@ -235,17 +247,37 @@ var HandwritingSettledSvgPresentation = (() => {
         return false;
       }
 
-      setStyle(host, "left", `${hostLocalRect.left}px`);
-      setStyle(host, "top", `${hostLocalRect.top}px`);
-      setStyle(host, "width", `${hostLocalRect.width}px`);
-      setStyle(host, "height", `${hostLocalRect.height}px`);
+      const nextHostStyles = {
+        left: `${hostLocalRect.left}px`,
+        top: `${hostLocalRect.top}px`,
+        width: `${hostLocalRect.width}px`,
+        height: `${hostLocalRect.height}px`,
+      };
+      const unchanged = visible
+        && sameRect(lastRect, clip)
+        && sameRect(lastRootRect, rootRect)
+        && sameRect(lastHostLocalRect, hostLocalRect)
+        && layers.every((layer, index) => layer.getAttribute?.("viewBox") === cropped[index]
+          && layer.getAttribute?.("width") === String(clip.width)
+          && layer.getAttribute?.("height") === String(clip.height))
+        && Object.entries(nextHostStyles).every(([property, value]) => host.style?.[property] === value);
+      if (unchanged) {
+        lastReason = "unchanged";
+        return true;
+      }
+      for (const [property, value] of Object.entries(nextHostStyles)) {
+        setStyleIfChanged(host, property, value);
+      }
       for (let index = 0; index < layers.length; index++) {
         const layer = layers[index];
-        layer.setAttribute("viewBox", cropped[index]);
-        layer.setAttribute("width", String(clip.width));
-        layer.setAttribute("height", String(clip.height));
+        const nextViewBox = cropped[index];
+        const nextWidth = String(clip.width);
+        const nextHeight = String(clip.height);
+        if (layer.getAttribute?.("viewBox") !== nextViewBox) layer.setAttribute("viewBox", nextViewBox);
+        if (layer.getAttribute?.("width") !== nextWidth) layer.setAttribute("width", nextWidth);
+        if (layer.getAttribute?.("height") !== nextHeight) layer.setAttribute("height", nextHeight);
       }
-      setStyle(host, "display", "block");
+      setStyleIfChanged(host, "display", "block");
       visible = true;
       updateCount++;
       generation++;
@@ -279,6 +311,8 @@ var HandwritingSettledSvgPresentation = (() => {
       update,
       hide,
       dispose,
+      getGeneration: () => generation,
+      getLastReason: () => lastReason,
       mode: () => visible ? "permanent" : "hidden",
       report: () => ({
         mode: visible ? "permanent" : "hidden",

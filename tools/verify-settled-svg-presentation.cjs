@@ -29,8 +29,10 @@ class Node {
     this.clientTop = 0;
     this.scrollLeft = 0;
     this.scrollTop = 0;
+    this.styleWrites = 0;
+    this.attributeWrites = 0;
   }
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  setAttribute(name, value) { this.attributeWrites++; this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
   appendChild(child) {
     if (child.parentNode) child.parentNode.removeChild(child);
@@ -148,6 +150,10 @@ if (!presentation.update({
   viewBox: "10 20 100 50",
 })) throw new Error("permanent presentation did not update");
 
+if (presentation.getGeneration?.() !== 1 || presentation.getLastReason?.() !== "updated") {
+  throw new Error("lightweight presentation state accessors did not reflect the published frame");
+}
+
 if (presentation.mode() !== "permanent") throw new Error("presentation did not enter permanent mode");
 if (host.style.left !== "125px" || host.style.top !== "165px" || host.style.width !== "150px" || host.style.height !== "75px") {
   throw new Error("permanent host was not positioned in note-root coordinates");
@@ -158,6 +164,21 @@ if (permanentParts.some((value, index) => Math.abs(value - [35, 28.3333333333333
 }
 if (presentation.report().ancestorTransforms.length !== 0) {
   throw new Error("permanent host unexpectedly inherited a transform");
+}
+
+const unchangedUpdateCount = presentation.report().updateCount;
+const unchangedHostWrites = host.styleWrites;
+const unchangedLayerWrites = highlighter.attributeWrites + pen.attributeWrites;
+if (!presentation.update({
+  sourceRect: { left: 100, top: 200, width: 300, height: 150 },
+  clipRect: { left: 175, top: 225, width: 150, height: 75 },
+  presentationRootRect: presentationRoot.rect,
+  viewBox: "10 20 100 50",
+})) throw new Error("identical permanent presentation update was rejected");
+if (presentation.report().updateCount !== unchangedUpdateCount
+  || host.styleWrites !== unchangedHostWrites
+  || highlighter.attributeWrites + pen.attributeWrites !== unchangedLayerWrites) {
+  throw new Error("identical permanent presentation update performed DOM work");
 }
 
 presentation.update({

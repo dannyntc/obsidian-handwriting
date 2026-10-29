@@ -1,6 +1,25 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.0`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.2`.
+
+## 1.8.2 — 2026-10-29
+
+### Fixed
+
+- Completed SVG handwriting keeps a bounded geometry cache and avoids unnecessary DOM writes during camera movement, improving responsiveness on larger notes.
+- SVG presentation updates retain the canonical viewport while refreshing only changed geometry and host measurements, preventing stale or magnified handwriting during panning and pinch zoom.
+- Canvas mode no longer applies elastic edge overscroll; reaching a canvas boundary clamps immediately while explicit pinch settlement corrections remain available.
+- Startup and note reopen paths wait for a valid SVG viewport and reconcile stored handwriting before presenting completed ink.
+
+## 1.8.1 — 2026-10-29
+
+### Fixed
+
+- Existing SVG handwriting is now reconciled after the note camera has been synchronized, preventing stale viewport culling from hiding strokes when a note is reopened.
+- Loading stored handwriting and switching completed-ink renderers now invalidate the SVG presentation cache before repainting, so sidecar-loaded strokes cannot be mistaken for an already-rendered empty state.
+- SVG presentation now waits for a valid initial viewport during app startup, preventing an early layout race from silently falling back to blurry Canvas rendering while SVG remains selected.
+- SVG presentation now derives its viewBox from the renderer's canonical camera viewport, preventing repeated pan updates from magnifying or shifting handwriting.
+- Presentation geometry is refreshed once per animation frame, so pane and sidebar movement cannot reuse stale screen coordinates.
 
 ## 1.8.0 — 2026-10-28
 

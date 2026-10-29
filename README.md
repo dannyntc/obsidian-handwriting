@@ -4,7 +4,7 @@ An Obsidian community plugin for handwriting, highlighting, erasing, and lasso s
 
 ## Current release
 
-Version `1.8.0`.
+Version `1.8.2`.
 
 This release includes:
 
@@ -15,6 +15,7 @@ This release includes:
 - A strict resize-path fix and an opt-in rendering comparison for separating raster, compositing, curve, and thin-stroke causes of softness.
 - A refined fountain-pen style for new Apple Pencil strokes, with smoother pressure transitions, controlled speed thinning, rounded caps, and saved per-stroke style metadata. Classic rendering remains available in settings.
 - A permanent note-local SVG layer for completed handwriting. It stays outside the scaled editor for crisp 100–150% presentation, remains clipped to the note viewport, and cannot cover sidebars or app chrome. Canvas remains available as the compatibility fallback and continues to handle live Pencil ink.
+- SVG panning keeps the camera viewport and displayed crop separate, so handwriting retains its size while the note moves.
 - Portable SVG snapshots stored in a comment-free managed HTML block, keeping handwritten notes readable when the plugin is disabled or removed.
 - Editable handwriting preserved in the plugin's `.handwriting` sidecar storage when the plugin is re-enabled.
 - After an erase gesture ends, the selected tool automatically returns to the pen or highlighter that was active before erasing.
