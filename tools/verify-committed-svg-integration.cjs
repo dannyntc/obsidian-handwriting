@@ -146,6 +146,42 @@ if (pinchMethod.includes("this.exitSettledSvgPresentation(e)")) {
   throw new Error("pinch gestures still hide the settled SVG presentation");
 }
 
+const beforePenDownStart = main.indexOf("beforePenDown(){");
+const beforePenDownEnd = beforePenDownStart >= 0 ? main.indexOf("endWheelZoomRun(){", beforePenDownStart) : -1;
+if (beforePenDownStart < 0 || beforePenDownEnd < 0) {
+  throw new Error("pen-down preparation method could not be located");
+}
+const beforePenDown = main.slice(beforePenDownStart, beforePenDownEnd);
+if (beforePenDown.includes('this.exitSettledSvgPresentation("input")')) {
+  throw new Error("pen-down preparation hides the settled SVG before lasso classification");
+}
+
+const penDownStart = main.indexOf("penDown(e,t){");
+const penDownEnd = penDownStart >= 0 ? main.indexOf("beginSnapPreview(e,t)", penDownStart) : -1;
+if (penDownStart < 0 || penDownEnd < 0) {
+  throw new Error("pen-down method could not be located");
+}
+const penDownMethod = main.slice(penDownStart, penDownEnd);
+const directLassoAt = penDownMethod.indexOf('if(n==="lasso")');
+const selectedLassoAt = penDownMethod.indexOf('this.mode="lasso",this.lassoDown(e);return}', directLassoAt + 1);
+const deferredInputHideAt = penDownMethod.indexOf('this.exitSettledSvgPresentation("input")');
+if (directLassoAt < 0 || selectedLassoAt < 0 || deferredInputHideAt < selectedLassoAt) {
+  throw new Error("pen-down input hiding is not deferred until after both lasso paths");
+}
+if (!penDownMethod.includes('if(n!=="ink")this.exitSettledSvgPresentation("input")')) {
+  throw new Error("ordinary ink input still hides the settled SVG presentation");
+}
+
+const endPenGestureStart = main.indexOf("endPenGesture(e){");
+const endPenGestureEnd = endPenGestureStart >= 0 ? main.indexOf("we.end(performance.now()", endPenGestureStart) : -1;
+if (endPenGestureStart < 0 || endPenGestureEnd < 0) {
+  throw new Error("pen-up gesture method could not be located");
+}
+const lassoRelease = main.slice(endPenGestureStart, endPenGestureEnd);
+if (!lassoRelease.includes('this.scheduleSettledSvgPresentation("lasso")') || !lassoRelease.includes('this.scheduleRepaint("lasso")')) {
+  throw new Error("lasso release does not queue a settled SVG refresh");
+}
+
 const pinchScaleStart = main.indexOf("applyPinchScale(e,t)");
 const pinchScaleEnd = pinchScaleStart >= 0 ? main.indexOf("columnLocalAt(e)", pinchScaleStart) : -1;
 if (pinchScaleStart < 0 || pinchScaleEnd < 0) throw new Error("pinch scale method could not be located");
@@ -157,6 +193,9 @@ if (!pinchScaleMethod.includes("this.refreshSettledSvgPinchPreview")) {
 const readyMethod = extractMethod("settledSvgPresentationReady()", "settledSvgGeometry()");
 if (readyMethod.includes("!this.pinchPreview")) {
   throw new Error("settled SVG presentation is still disabled during pinch preview");
+}
+if (!readyMethod.includes('(this.mode==="ink"||this.mode==="lasso")') || !readyMethod.includes('!this.router?.isStroking||this.mode==="lasso"')) {
+  throw new Error("settled SVG presentation is still disabled during lasso interaction");
 }
 if (!main.includes("refreshSettledSvgPinchPreview(e=\"pinch\")")) {
   throw new Error("settled SVG pinch preview helper is missing");

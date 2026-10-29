@@ -39,6 +39,25 @@ var HandwritingPortableSnapshots=(()=>{
     return [...base.map(()=>".."),...target].join("/")||target.at(-1)||to;
   };
   const withoutManagedBlock=content=>content.replace(managedBlockPattern(),"").replace(legacyMarkerPattern(),"").trimEnd();
+  const consolidateManagedBlock=(content,block)=>{
+    const matches=[...content.matchAll(managedBlockPattern())];
+    if(matches.length===0){
+      const cleaned=content.replace(legacyMarkerPattern(),"").trimEnd();
+      return cleaned?`${cleaned}\n\n${block}\n`:`${block}\n`;
+    }
+    const first=matches[0];
+    const before=content.slice(0,first.index).replace(legacyMarkerPattern(),"").trimEnd();
+    let cursor=first.index+first[0].length;
+    let after="";
+    for(let index=1;index<matches.length;index++){
+      const match=matches[index];
+      after+=content.slice(cursor,match.index);
+      cursor=match.index+match[0].length;
+    }
+    after+=(content.slice(cursor)||"");
+    after=after.replace(legacyMarkerPattern(),"").trimStart();
+    return `${before}${before?"\n\n":""}${block}\n${after?`\n\n${after}`:""}`.trimEnd()+"\n";
+  };
   const managedBlock=(path,label="Handwriting snapshot")=>{
     const src=path.split("/").map(encodeURIComponent).join("/");
     return `<div class="handwriting-portable-snapshot" data-handwriting-portable-snapshot="true">\n<img src="${src}" alt="${label}">\n</div>`;
@@ -251,15 +270,7 @@ var HandwritingPortableSnapshots=(()=>{
       this.publishing.add(file.path);
       try{
         await this.app.vault.process(file,current=>{
-          const matches=[...current.matchAll(managedBlockPattern())];
-          if(matches.length>1)throw new Error("multiple portable snapshot blocks found");
-          if(matches.length===1){
-            const match=matches[0];
-            const before=current.slice(0,match.index).replace(legacyMarkerPattern(),"");
-            const after=current.slice(match.index+match[0].length).replace(legacyMarkerPattern(),"");
-            return `${before.trimEnd()}\n\n${block}\n${after.trimStart()}`.trimEnd()+"\n";
-          }
-          return `${withoutManagedBlock(current)}\n\n${block}\n`;
+          return consolidateManagedBlock(current,block);
         });
       }finally{setTimeout(()=>this.publishing.delete(file.path),500)}
     }
@@ -269,7 +280,6 @@ var HandwritingPortableSnapshots=(()=>{
       try{
         await this.app.vault.process(file,current=>{
           const matches=[...current.matchAll(managedBlockPattern())];
-          if(matches.length>1)throw new Error("multiple portable snapshot blocks found");
           if(matches.length===0&&!legacyMarkerPattern().test(current))return current;
           const cleaned=withoutManagedBlock(current);
           return cleaned?`${cleaned}\n`:"";

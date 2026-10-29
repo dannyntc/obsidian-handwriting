@@ -88,6 +88,20 @@ vm.runInNewContext(`${source}\nthis.PortableSnapshots=HandwritingPortableSnapsho
   if (countManagedBlocks(compactLegacy.state.note) !== 1) throw new Error("compact legacy snapshot did not become one managed data block");
   if (!compactLegacy.state.note.includes("# Note")) throw new Error("compact legacy migration removed note content");
 
+  const duplicateNote = "# Note\n\n<div class=\"handwriting-portable-snapshot\" data-handwriting-portable-snapshot=\"true\"><img src=\"old-1.svg\"></div>\n\nKeep this text\n\n<div class=\"handwriting-portable-snapshot\" data-handwriting-portable-snapshot=\"true\"><img src=\"old-2.svg\"></div>\n\nAfter\n";
+  const duplicate = await publish(duplicateNote, 7);
+  if (countManagedBlocks(duplicate.state.note) !== 1) throw new Error("duplicate modern snapshots were not consolidated");
+  if (!duplicate.state.note.includes("Keep this text") || !duplicate.state.note.includes("After")) throw new Error("duplicate consolidation removed surrounding note text");
+  if (!duplicate.state.note.includes("../Handwriting%20snapshots/page-123/snapshot-7-")) throw new Error("consolidated snapshot does not reference the new attachment");
+
+  const mixed = await publish(
+    "# Note\n\n<!-- handwriting-portable-snapshot:start -->\n<div class=\"handwriting-portable-snapshot\"><img src=\"legacy.svg\"></div>\n<!-- handwriting-portable-snapshot:end -->\n\nBetween\n\n<div class=\"handwriting-portable-snapshot\" data-handwriting-portable-snapshot=\"true\"><img src=\"modern.svg\"></div>\n",
+    8,
+  );
+  if (hasLegacyMarker(mixed.state.note)) throw new Error("mixed snapshot markers were not removed");
+  if (countManagedBlocks(mixed.state.note) !== 1) throw new Error("mixed snapshot blocks were not consolidated");
+  if (!mixed.state.note.includes("Between")) throw new Error("mixed consolidation removed intervening note text");
+
   const unmatched = makeVault("# Note\n\n<!--handwriting-portable-snapshot:end-->\n");
   const unmatchedManager = new context.PortableSnapshots({ vault: unmatched.vault });
   await unmatchedManager.removePublishedBlock(file);
@@ -97,6 +111,10 @@ vm.runInNewContext(`${source}\nthis.PortableSnapshots=HandwritingPortableSnapsho
   if (modern.state.note.includes("data-handwriting-portable-snapshot=\"true\"")) throw new Error("snapshot data block was not removable");
   if (!modern.state.note.includes("# Note")) throw new Error("snapshot removal removed note content");
   if (modern.state.created.size !== 1) throw new Error("snapshot attachment was deleted during block removal");
+  const duplicateRemoval = makeVault(duplicateNote);
+  const duplicateRemovalManager = new context.PortableSnapshots({ vault: duplicateRemoval.vault });
+  await duplicateRemovalManager.removePublishedBlock(file);
+  if (countManagedBlocks(duplicateRemoval.note) !== 0 || !duplicateRemoval.note.includes("Keep this text")) throw new Error("duplicate snapshot removal damaged note content");
   if (!bundle.includes("HandwritingPortableSnapshots")) throw new Error("manager is missing from main.js");
   if (notices.length !== 0) throw new Error(`unexpected notices: ${notices.join(", ")}`);
 
