@@ -5,6 +5,11 @@ const bundlePath = "main.js";
 const sourcePath = "tools/portable-snapshot-source.js";
 let bundle = fs.readFileSync(bundlePath, "utf8");
 const source = fs.readFileSync(sourcePath, "utf8").trim();
+const sourceMarker = "var HandwritingPortableSnapshots=(()=>{";
+const sourceBodyStart = source.indexOf(sourceMarker);
+if (sourceBodyStart < 0) throw new Error("portable snapshot source marker not found");
+const sourceHeader = source.slice(0, sourceBodyStart);
+const sourceBody = source.slice(sourceBodyStart);
 
 const removeDelimited = (startMarker, endMarker, label) => {
   const start = bundle.indexOf(startMarker);
@@ -72,12 +77,23 @@ while (bundle.includes('this.addCommand({id:"show-last-portable-snapshot-error"'
 const helperStart = bundle.indexOf("var HandwritingPortableSnapshots=(()=>{");
 const helperEnd = helperStart >= 0 ? bundle.indexOf("\n\nvar Ry=", helperStart) : -1;
 if (helperStart < 0 || helperEnd < 0) throw new Error("portable snapshot helper boundaries not found");
-bundle = `${bundle.slice(0, helperStart)}${source}${bundle.slice(helperEnd)}`;
+let helperPrefix = bundle.slice(0, helperStart);
+while (helperPrefix.endsWith(sourceHeader)) helperPrefix = helperPrefix.slice(0, -sourceHeader.length);
+bundle = `${helperPrefix}${sourceHeader}${sourceBody}${bundle.slice(helperEnd)}`;
 
-const visibilityBefore = 'this.exitSettledSvgPresentation("input");if(this.selection.clear()';
-const visibilityAfter = 'if(n!=="ink")this.exitSettledSvgPresentation("input");if(this.selection.clear()';
-if (bundle.includes(visibilityBefore)) bundle = bundle.replace(visibilityBefore, visibilityAfter);
-if (!bundle.includes(visibilityAfter)) throw new Error("writing visibility guard is missing");
+const penDownStart = bundle.indexOf("penDown(e,t){");
+const penDownEnd = penDownStart >= 0 ? bundle.indexOf("beginSnapPreview(e,t)", penDownStart) : -1;
+if (penDownStart < 0 || penDownEnd < 0) throw new Error("pen-down method boundaries not found");
+const penDownMethod = bundle.slice(penDownStart, penDownEnd);
+const visibilityGuardPattern = /(?:if\(n!=="ink"\)){1,}this\.exitSettledSvgPresentation\("input"\);|if\(n!=="ink"&&n!=="erase"\)this\.exitSettledSvgPresentation\("input"\);/;
+const visibilityGuard = 'if(n!=="ink"&&n!=="erase")this.exitSettledSvgPresentation("input");';
+if (!visibilityGuardPattern.test(penDownMethod)) throw new Error("writing visibility guard is missing");
+bundle = `${bundle.slice(0, penDownStart)}${penDownMethod.replace(visibilityGuardPattern, visibilityGuard)}${bundle.slice(penDownEnd)}`;
+
+const readyBefore = 'settledSvgPresentationReady(){return!!this.container&&!this.retiring&&this.committedSvgRenderer?.getMode?.()==="svg"&&(!this.router?.isStroking||this.mode==="lasso")&&this.builder===null&&(this.mode==="ink"||this.mode==="lasso")}';
+const readyAfter = 'settledSvgPresentationReady(){return!!this.container&&!this.retiring&&this.committedSvgRenderer?.getMode?.()==="svg"&&(!this.router?.isStroking||this.mode==="lasso"||this.mode==="erase")&&this.builder===null&&(this.mode==="ink"||this.mode==="lasso"||this.mode==="erase")}';
+if (bundle.includes(readyBefore)) bundle = bundle.replace(readyBefore, readyAfter);
+if (!bundle.includes(readyAfter)) throw new Error("settled SVG erase readiness is missing");
 
 new vm.Script(bundle, { filename: bundlePath });
 const forbidden = [

@@ -32,7 +32,7 @@ replaceOnce(
 replaceOnce(
   "lasso presentation readiness",
   'settledSvgPresentationReady(){return!!this.container&&!this.retiring&&this.committedSvgRenderer?.getMode?.()==="svg"&&!this.router?.isStroking&&this.builder===null&&this.mode==="ink"}',
-  'settledSvgPresentationReady(){return!!this.container&&!this.retiring&&this.committedSvgRenderer?.getMode?.()==="svg"&&(!this.router?.isStroking||this.mode==="lasso")&&this.builder===null&&(this.mode==="ink"||this.mode==="lasso")}',
+  'settledSvgPresentationReady(){return!!this.container&&!this.retiring&&this.committedSvgRenderer?.getMode?.()==="svg"&&(!this.router?.isStroking||this.mode==="lasso"||this.mode==="erase")&&this.builder===null&&(this.mode==="ink"||this.mode==="lasso"||this.mode==="erase")}',
 );
 
 new vm.Script(bundle, { filename: file });

@@ -168,8 +168,12 @@ const deferredInputHideAt = penDownMethod.indexOf('this.exitSettledSvgPresentati
 if (directLassoAt < 0 || selectedLassoAt < 0 || deferredInputHideAt < selectedLassoAt) {
   throw new Error("pen-down input hiding is not deferred until after both lasso paths");
 }
-if (!penDownMethod.includes('if(n!=="ink")this.exitSettledSvgPresentation("input")')) {
-  throw new Error("ordinary ink input still hides the settled SVG presentation");
+const eraseVisibilityGuard = 'if(n!=="ink"&&n!=="erase")this.exitSettledSvgPresentation("input")';
+if (!penDownMethod.includes(eraseVisibilityGuard)) {
+  throw new Error("eraser input hides the settled SVG presentation");
+}
+if ((penDownMethod.match(/if\(n!=="ink"(?:&&n!=="erase")?\)this\.exitSettledSvgPresentation\("input"\)/g) ?? []).length !== 1) {
+  throw new Error("pen-down input visibility policy is duplicated");
 }
 
 const endPenGestureStart = main.indexOf("endPenGesture(e){");
@@ -194,8 +198,11 @@ const readyMethod = extractMethod("settledSvgPresentationReady()", "settledSvgGe
 if (readyMethod.includes("!this.pinchPreview")) {
   throw new Error("settled SVG presentation is still disabled during pinch preview");
 }
-if (!readyMethod.includes('(this.mode==="ink"||this.mode==="lasso")') || !readyMethod.includes('!this.router?.isStroking||this.mode==="lasso"')) {
+if (!readyMethod.includes('this.mode==="lasso"') || !readyMethod.includes('!this.router?.isStroking||this.mode==="lasso"')) {
   throw new Error("settled SVG presentation is still disabled during lasso interaction");
+}
+if (!readyMethod.includes('(this.mode==="ink"||this.mode==="lasso"||this.mode==="erase")') || !readyMethod.includes('!this.router?.isStroking||this.mode==="lasso"||this.mode==="erase"')) {
+  throw new Error("settled SVG presentation is still disabled during erase");
 }
 if (!main.includes("refreshSettledSvgPinchPreview(e=\"pinch\")")) {
   throw new Error("settled SVG pinch preview helper is missing");
