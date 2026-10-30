@@ -227,8 +227,7 @@ var HandwritingFountainInk = (() => {
     return `M ${point.x - r} ${point.y} A ${r} ${r} 0 1 0 ${point.x + r} ${point.y} A ${r} ${r} 0 1 0 ${point.x - r} ${point.y} Z`;
   };
 
-  const geometry = (stroke, renderScale = 1) => {
-    const ribbon = build(stroke, renderScale);
+  const geometryFromRibbon = ribbon => {
     const sides = outline(ribbon);
     const discs = ribbon.length === 0 ? [] : [
       { x: ribbon[0].x, y: ribbon[0].y, r: ribbon[0].hw },
@@ -245,8 +244,8 @@ var HandwritingFountainInk = (() => {
     return { ribbon, ...sides, discs };
   };
 
-  const path = (stroke, renderScale = 4) => {
-    const shape = geometry(stroke, renderScale);
+  const pathFromRibbon = ribbon => {
+    const shape = geometryFromRibbon(Array.isArray(ribbon) ? ribbon : []);
     if (shape.ribbon.length === 0) return "";
     if (shape.ribbon.length === 1) return circlePath(shape.ribbon[0], shape.ribbon[0].hw);
     let output = `M ${shape.left[0].x} ${shape.left[0].y}`;
@@ -256,6 +255,10 @@ var HandwritingFountainInk = (() => {
     for (const disc of shape.discs) output += circlePath(disc, disc.r);
     return output;
   };
+
+  const geometry = (stroke, renderScale = 1) => geometryFromRibbon(build(stroke, renderScale));
+
+  const path = (stroke, renderScale = 4) => pathFromRibbon(build(stroke, renderScale));
 
   const drawCanvas = (context, camera, stroke, _style, _settled = true) => {
     const ribbon = build(stroke, Math.max(1, camera?.zoom ?? 1));
@@ -298,6 +301,7 @@ var HandwritingFountainInk = (() => {
     build,
     geometry,
     path,
+    pathFromRibbon,
     drawCanvas,
     pdfGeometry,
     head,

@@ -34,6 +34,8 @@ if (ribbon.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.i
 const pressures = ribbon.map(point => point.hw);
 if (Math.max(...pressures) <= Math.min(...pressures)) throw new Error("pressure did not affect width");
 if (!ink.path(full).includes(" Z")) throw new Error("fountain SVG path is incomplete");
+if (typeof ink.pathFromRibbon !== "function") throw new Error("incremental fountain path helper is missing");
+if (!ink.pathFromRibbon(ribbon).includes(" Z")) throw new Error("incremental fountain SVG path is incomplete");
 
 const short = ink.build(stroke([
   { x: 0, y: 0, pressure: .5, t: 0 },

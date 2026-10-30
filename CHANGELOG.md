@@ -1,6 +1,14 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.2`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.5`.
+
+## 1.8.5 — 2026-10-30
+
+### Fixed
+
+- Active Apple Pencil fountain strokes now use the existing clipped SVG presentation while the Pencil is down, removing the contact-time raster softness before the sharp settled handoff.
+- Live SVG updates are batched once per animation frame and append only new ribbon chunks, preserving responsive input while bridging chunk endpoints so visible gaps do not return.
+- Added deterministic active-stroke replay and bundle-integration checks, with cleanup and Canvas fallback for renderer changes, cancellation, resize fallback, and note teardown.
 
 ## 1.8.2 — 2026-10-29
 
