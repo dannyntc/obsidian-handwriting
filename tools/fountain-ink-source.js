@@ -7,6 +7,7 @@
  */
 var HandwritingFountainInk = (() => {
   const VERSION = "fountain-v1";
+  const VERSION_V2 = "fountain-v2";
   const TAU = Math.PI * 2;
   const PROFILE = Object.freeze({
     pressureTimeMs: 12,
@@ -19,6 +20,18 @@ var HandwritingFountainInk = (() => {
     flatteningPx: 0.2,
     startFactor: 0.4,
     endFactor: 0.4,
+  });
+  const PRESSURE_PROFILES = Object.freeze({
+    [VERSION]: Object.freeze({
+      minWidthFactor: PROFILE.minWidthFactor,
+      maxWidthFactor: 1,
+      pressureExponent: PROFILE.pressureExponent,
+    }),
+    [VERSION_V2]: Object.freeze({
+      minWidthFactor: 0.2,
+      maxWidthFactor: 1.1,
+      pressureExponent: 1.15,
+    }),
   });
 
   const finite = (value, fallback) => Number.isFinite(value) ? value : fallback;
@@ -34,17 +47,19 @@ var HandwritingFountainInk = (() => {
 
   const isFountain = value => {
     const style = typeof value === "string" ? value : value?.inkStyle;
-    return style === VERSION || style === "fountain";
+    return style === VERSION || style === VERSION_V2 || style === "fountain";
   };
 
   const resolveOptions = (strokeOrStyle = {}, overrides = {}) => {
     const source = { ...strokeOrStyle, ...overrides };
+    const style = source.inkStyle === VERSION_V2 ? VERSION_V2 : VERSION;
     return {
       fountain: isFountain(source),
       width: Math.max(0.05, finite(source.width ?? source.baseWidth, 2.2)),
       pressure: source.pressureSensitivity !== "off" && source.pressureSensitivity !== false,
       smoothing: source.inkSmoothing !== "off" && source.inkSmoothing !== false,
-      style: VERSION,
+      style,
+      pressureProfile: PRESSURE_PROFILES[style],
       renderScale: Math.max(1, finite(source.renderScale, 1)),
     };
   };
@@ -75,7 +90,9 @@ var HandwritingFountainInk = (() => {
     }
     state.lastSample = sample;
     const pressureFactor = state.options.pressure
-      ? (PROFILE.minWidthFactor + (1 - PROFILE.minWidthFactor) * Math.pow(state.pressure, PROFILE.pressureExponent))
+      ? (state.options.pressureProfile.minWidthFactor
+        + (state.options.pressureProfile.maxWidthFactor - state.options.pressureProfile.minWidthFactor)
+        * Math.pow(state.pressure, state.options.pressureProfile.pressureExponent))
       : 1;
     const speedFactor = state.options.pressure
       ? Math.max(1 - PROFILE.maxSpeedReduction, 1 / (1 + PROFILE.speedK * state.speed))
@@ -292,7 +309,9 @@ var HandwritingFountainInk = (() => {
 
   return {
     VERSION,
+    VERSION_V2,
     PROFILE,
+    PRESSURE_PROFILES,
     isFountain,
     resolveOptions,
     createState,

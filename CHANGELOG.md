@@ -1,6 +1,14 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.5`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.6`.
+
+## 1.8.6 — 2026-10-30
+
+### Changed
+
+- Removed the Classic handwriting selector from settings and new-stroke selection.
+- Preserved existing Classic handwriting unchanged, including legacy parsing and rendering fallback compatibility; no vault-wide conversion or startup migration is performed.
+- Fountain pressure profiles remain the supported choice for new strokes.
 
 ## 1.8.5 — 2026-10-30
 

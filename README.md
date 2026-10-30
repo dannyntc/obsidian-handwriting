@@ -4,7 +4,7 @@ An Obsidian community plugin for handwriting, highlighting, erasing, and lasso s
 
 ## Current release
 
-Version `1.8.5`.
+Version `1.8.6`.
 
 This release includes:
 
@@ -13,7 +13,7 @@ This release includes:
 - Sharper settled handwriting after zooming with optimized redraw and compositing behavior.
 - Adaptive raster overscan that keeps 150% pinch-zoom handwriting at the requested Retina resolution without exceeding the canvas memory budget.
 - A strict resize-path fix and an opt-in rendering comparison for separating raster, compositing, curve, and thin-stroke causes of softness.
-- A refined fountain-pen style for new Apple Pencil strokes, with smoother pressure transitions, controlled speed thinning, rounded caps, and saved per-stroke style metadata. Classic rendering remains available in settings.
+- A refined fountain-pen style for new Apple Pencil strokes, with smoother pressure transitions, controlled speed thinning, rounded caps, selectable pressure profiles, and saved per-stroke style metadata. Legacy Classic handwriting remains preserved but is no longer selectable for new strokes.
 - A permanent note-local SVG layer for completed handwriting. It stays outside the scaled editor for crisp 100–150% presentation, remains clipped to the note viewport, and cannot cover sidebars or app chrome. Canvas remains available as the compatibility fallback and continues to handle live Pencil ink.
 - SVG panning keeps the camera viewport and displayed crop separate, so handwriting retains its size while the note moves.
 - Portable SVG snapshots stored in a comment-free managed HTML block, keeping handwritten notes readable when the plugin is disabled or removed.
@@ -49,6 +49,9 @@ node --check tools/patch-fountain-options.cjs
 node --check tools/patch-fountain-builder-options.cjs
 node --check tools/patch-fountain-primary.cjs
 node --check tools/patch-fountain-settings.cjs
+node --check tools/patch-fountain-profile-setting.cjs
+node --check tools/patch-remove-classic.cjs
+node --check tools/verify-classic-removal.cjs
 node --check tools/verify-handwriting-raster.cjs
 node --check tools/verify-handwriting-resize.cjs
 node --check tools/verify-handwriting-render-quality.cjs
@@ -81,6 +84,7 @@ node tools/verify-handwriting-render-quality.cjs
 node tools/verify-fountain-ink.cjs
 node tools/verify-fountain-storage.cjs
 node tools/verify-fountain-integration.cjs
+node tools/verify-classic-removal.cjs
 node tools/verify-committed-svg.cjs
 node tools/verify-committed-svg-integration.cjs
 node tools/verify-settled-svg-presentation.cjs
@@ -95,7 +99,7 @@ Completed SVG ink now uses the permanent note-local layer automatically. Compare
 
 The zoom report's `svg handoff` line measures the JavaScript time from SVG publication start to the completed presentation update. `completed ink` also reports `lastIncrementalMs`, `incrementalUpserts`, and `attributeWrites`; after a normal Pencil lift, the upsert count should increase by the number of newly completed strokes while existing paths remain cached.
 
-New strokes use **Fountain pen** by default. To use the previous appearance for future strokes, open Handwriting settings and choose **Classic** under **Pen style**. Existing strokes keep the style saved with them.
+New strokes use the selected **Fountain pressure profile** under Handwriting settings. Existing handwriting keeps its saved renderer, including legacy Classic strokes; changing the pressure profile affects only new strokes.
 
 ## Repository contents
 

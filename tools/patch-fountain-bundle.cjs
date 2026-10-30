@@ -27,78 +27,63 @@ replaceOnce(
 );
 replaceOnce(
   "stroke field allowlist",
-  'fg=new Set(["id","tool","color","width","createdAt","device","widthMode","pts","ptsd","points","page","pressureProfile","pressureSensitivity"]);',
-  'fg=new Set(["id","tool","color","width","createdAt","device","widthMode","pts","ptsd","points","page","pressureProfile","pressureSensitivity","inkStyle"]);',
+  'fg=new Set(["id","tool","color","width","createdAt","device","widthMode","pts","ptsd","points","page","pressureProfile","pressureSensitivity","inkStyle","inkSmoothing"]);',
+  'fg=new Set(["id","tool","color","width","createdAt","device","widthMode","pts","ptsd","points","page","pressureProfile","pressureSensitivity","inkStyle","inkSmoothing"]);',
 );
 replaceOnce(
   "stroke serialization",
-  '...t.pressureSensitivity==="on"||t.pressureSensitivity==="off"?{pressureSensitivity:t.pressureSensitivity}:{},...typeof t.page=="number"',
-  '...t.pressureSensitivity==="on"||t.pressureSensitivity==="off"?{pressureSensitivity:t.pressureSensitivity}:{},...t.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{},...typeof t.page=="number"',
+  '...t.pressureSensitivity==="on"||t.pressureSensitivity==="off"?{pressureSensitivity:t.pressureSensitivity}:{},...t.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{},...t.inkSmoothing==="on"||t.inkSmoothing==="off"?{inkSmoothing:t.inkSmoothing}:{},...typeof t.page=="number"',
+  '...t.pressureSensitivity==="on"||t.pressureSensitivity==="off"?{pressureSensitivity:t.pressureSensitivity}:{},...t.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:t.inkStyle==="fountain-v2"?{inkStyle:"fountain-v2"}:{},...t.inkSmoothing==="on"||t.inkSmoothing==="off"?{inkSmoothing:t.inkSmoothing}:{},...typeof t.page=="number"',
 );
 replaceOnce(
   "stroke parser field",
-  '...l.pressureSensitivity==="on"||l.pressureSensitivity==="off"?{pressureSensitivity:l.pressureSensitivity}:{},...Number.isInteger(l.page)',
-  '...l.pressureSensitivity==="on"||l.pressureSensitivity==="off"?{pressureSensitivity:l.pressureSensitivity}:{},...l.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{},...Number.isInteger(l.page)',
+  '...l.pressureSensitivity==="on"||l.pressureSensitivity==="off"?{pressureSensitivity:l.pressureSensitivity}:{},...l.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{},...l.inkSmoothing==="on"||l.inkSmoothing==="off"?{inkSmoothing:l.inkSmoothing}:{},...Number.isInteger(l.page)&&l.page>=1?{page:l.page}:{}});',
+  '...l.pressureSensitivity==="on"||l.pressureSensitivity==="off"?{pressureSensitivity:l.pressureSensitivity}:{},...l.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:l.inkStyle==="fountain-v2"?{inkStyle:"fountain-v2"}:{},...l.inkSmoothing==="on"||l.inkSmoothing==="off"?{inkSmoothing:l.inkSmoothing}:{},...Number.isInteger(l.page)&&l.page>=1?{page:l.page}:{}});',
 );
 replaceOnce(
   "unknown style preservation",
-  'l.pressureSensitivity!==void 0&&l.pressureSensitivity!=="on"&&l.pressureSensitivity!=="off"&&(v.pressureSensitivity=l.pressureSensitivity),Object.keys(v).length>0',
-  'l.pressureSensitivity!==void 0&&l.pressureSensitivity!=="on"&&l.pressureSensitivity!=="off"&&(v.pressureSensitivity=l.pressureSensitivity),l.inkStyle!==void 0&&l.inkStyle!=="fountain-v1"&&(v.inkStyle=l.inkStyle),Object.keys(v).length>0',
+  'l.pressureSensitivity!==void 0&&l.pressureSensitivity!=="on"&&l.pressureSensitivity!=="off"&&(v.pressureSensitivity=l.pressureSensitivity),l.inkStyle!==void 0&&l.inkStyle!=="fountain-v1"&&(v.inkStyle=l.inkStyle),l.inkSmoothing!==void 0&&l.inkSmoothing!=="on"&&l.inkSmoothing!=="off"&&(v.inkSmoothing=l.inkSmoothing),Object.keys(v).length>0',
+  'l.pressureSensitivity!==void 0&&l.pressureSensitivity!=="on"&&l.pressureSensitivity!=="off"&&(v.pressureSensitivity=l.pressureSensitivity),l.inkStyle!==void 0&&l.inkStyle!=="fountain-v1"&&l.inkStyle!=="fountain-v2"&&(v.inkStyle=l.inkStyle),l.inkSmoothing!==void 0&&l.inkSmoothing!=="on"&&l.inkSmoothing!=="off"&&(v.inkSmoothing=l.inkSmoothing),Object.keys(v).length>0',
 );
 replaceOnce(
   "builder style persistence",
-  '...this.pressureProfile&&!s?{pressureProfile:this.pressureProfile}:{}}}',
-  '...this.pressureProfile&&!s?{pressureProfile:this.pressureProfile}:{},...this.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{}}}',
+  'this.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{},',
+  'this.inkStyle==="fountain-v1"||this.inkStyle==="fountain-v2"?{inkStyle:this.inkStyle}:{},',
 );
 replaceOnce(
   "shape style persistence",
-  '...i.pressureProfile==="exp7"?{pressureProfile:i.pressureProfile}:{}}}var tl=',
-  '...i.pressureProfile==="exp7"?{pressureProfile:i.pressureProfile}:{},...i.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{}}}var tl=',
+  'i.inkStyle==="fountain-v1"?{inkStyle:"fountain-v1"}:{},',
+  'i.inkStyle==="fountain-v1"||i.inkStyle==="fountain-v2"?{inkStyle:i.inkStyle}:{},',
 );
 replaceOnce(
   "default settings",
-  'inkSmoothing:!0,inkAdaptsToTheme:!1,',
-  'inkSmoothing:!0,penStyle:"fountain",inkAdaptsToTheme:!1,',
+  'inkSmoothing:!0,penStyle:"fountain",fountainProfile:"v2",completedInkRenderer:"svg",inkAdaptsToTheme:!1,',
+  'inkSmoothing:!0,penStyle:"fountain",fountainProfile:"v2",completedInkRenderer:"svg",inkAdaptsToTheme:!1,',
 );
 replaceOnce(
   "settings parser",
-  'pressureSensitivity:oS(e),pressureChoice:oS(e),inkSmoothing:e?.inkSmoothing!==!1,inkAdaptsToTheme:',
-  'pressureSensitivity:oS(e),pressureChoice:oS(e),inkSmoothing:e?.inkSmoothing!==!1,penStyle:e?.penStyle==="classic"?"classic":"fountain",inkAdaptsToTheme:',
+  'pressureSensitivity:oS(e),pressureChoice:oS(e),inkSmoothing:e?.inkSmoothing!==!1,penStyle:e?.penStyle==="classic"?"classic":"fountain",fountainProfile:e?.fountainProfile==="v1"?"v1":"v2",completedInkRenderer:e?.completedInkRenderer==="canvas"?"canvas":"svg",inkAdaptsToTheme:',
+  'pressureSensitivity:oS(e),pressureChoice:oS(e),inkSmoothing:e?.inkSmoothing!==!1,penStyle:e?.penStyle==="classic"?"classic":"fountain",fountainProfile:e?.fountainProfile==="v1"?"v1":"v2",completedInkRenderer:e?.completedInkRenderer==="canvas"?"canvas":"svg",inkAdaptsToTheme:',
 );
 replaceOnce(
   "runtime style selection",
-  'applyRuntimeSettings(){_o(this.settings.penTools),',
-  'applyRuntimeSettings(){j.inkStyle=this.settings.penStyle==="fountain"?"fountain-v1":void 0,_o(this.settings.penTools),',
+  'j.inkStyle=this.settings.penStyle==="fountain"?"fountain-v1":void 0',
+  'j.inkStyle=this.settings.fountainProfile==="v1"?"fountain-v1":"fountain-v2"',
 );
 replaceOnce(
   "primary style selection",
-  'this.activeStyle=c.style,t.pointerType==="pen"?Wt():t.pointerType==="mouse"&&ge(),',
-  'this.activeStyle=c.style,this.activeStyle.inkStyle=this.settings.penStyle==="fountain"&&s==="pen"&&t.pointerType==="pen"?"fountain-v1":void 0,t.pointerType==="pen"?Wt():t.pointerType==="mouse"&&ge(),',
-);
-replaceOnce(
-  "primary builder metadata",
-  'this.builder=new ut(s,this.activeStyle.color,this.activeStyle.baseWidth,void 0,o?"mouse":void 0,l),this.builder.start(e.timestamp)',
-  'this.builder=new ut(s,this.activeStyle.color,this.activeStyle.baseWidth,void 0,o?"mouse":void 0,l),this.builder.inkStyle=this.activeStyle.inkStyle,this.builder.start(e.timestamp)',
+  'this.activeStyle.inkStyle=j.inkStyle==="fountain-v2"&&s==="pen"&&t.pointerType==="pen"?"fountain-v2":void 0',
+  'this.activeStyle.inkStyle=HandwritingFountainInk.isFountain(j)&&s==="pen"&&t.pointerType==="pen"?j.inkStyle:void 0',
 );
 replaceOnce(
   "PDF style selection",
-  'this.strokeStyle={...u==="highlighter"?oe:j,color:te(u),baseWidth:DP(u==="highlighter"?oe.baseWidth:j.baseWidth,ue(u))},this.builder=',
-  'this.strokeStyle={...u==="highlighter"?oe:j,color:te(u),baseWidth:DP(u==="highlighter"?oe.baseWidth:j.baseWidth,ue(u))},this.strokeStyle.inkStyle=u==="pen"&&!this.mouseStroke&&j.inkStyle==="fountain-v1"?"fountain-v1":void 0,this.builder=',
-);
-replaceOnce(
-  "PDF builder metadata",
-  'this.builder=new ut(u,this.strokeStyle.color,this.strokeStyle.baseWidth,void 0,this.mouseStroke?"mouse":void 0),this.predReal=[]',
-  'this.builder=new ut(u,this.strokeStyle.color,this.strokeStyle.baseWidth,void 0,this.mouseStroke?"mouse":void 0),this.builder.inkStyle=this.strokeStyle.inkStyle,this.predReal=[]',
+  'this.strokeStyle.inkStyle=u==="pen"&&!this.mouseStroke&&j.inkStyle==="fountain-v2"?"fountain-v2":void 0',
+  'this.strokeStyle.inkStyle=u==="pen"&&!this.mouseStroke&&HandwritingFountainInk.isFountain(j)?j.inkStyle:void 0',
 );
 replaceOnce(
   "slide style metadata",
-  'style(e){return{...e.tool==="highlighter"?oe:j,color:e.color,baseWidth:e.width}}',
-  'style(e){return{...e.tool==="highlighter"?oe:j,color:e.color,baseWidth:e.width,inkStyle:e.tool==="pen"&&j.inkStyle==="fountain-v1"?"fountain-v1":void 0}}',
-);
-replaceOnce(
-  "slide builder metadata",
-  'this.builder=new ut(t.tool,t.color,t.width,void 0,r?"mouse":void 0),this.builder.start(n.timeStamp)',
-  'this.builder=new ut(t.tool,t.color,t.width,void 0,r?"mouse":void 0),this.builder.inkStyle=this.activeStyle.inkStyle,this.builder.start(n.timeStamp)',
+  'inkStyle:e.tool==="pen"&&j.inkStyle==="fountain-v2"?"fountain-v2":void 0',
+  'inkStyle:e.tool==="pen"&&HandwritingFountainInk.isFountain(j)?j.inkStyle:void 0',
 );
 replaceOnce(
   "live fountain field",

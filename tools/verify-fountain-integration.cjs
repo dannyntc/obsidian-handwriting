@@ -4,11 +4,21 @@ const source = fs.readFileSync("tools/fountain-ink-source.js", "utf8").trim();
 const activeSource = fs.readFileSync("tools/active-svg-source.js", "utf8").trim();
 const main = fs.readFileSync("main.js", "utf8");
 
-if (manifest.version !== "1.8.5") throw new Error(`unexpected manifest version: ${manifest.version}`);
+if (manifest.version !== "1.8.6") throw new Error(`unexpected manifest version: ${manifest.version}`);
 if (!main.includes("/* BEGIN HANDWRITING FOUNTAIN INK */") || !main.includes("/* END HANDWRITING FOUNTAIN INK */")) {
   throw new Error("fountain source markers are missing");
 }
 if (!main.includes(source)) throw new Error("main.js does not contain the current fountain source");
+if (!main.includes('const VERSION_V2 = "fountain-v2"')) throw new Error("main.js does not contain fountain-v2");
+if (!main.includes('j.inkStyle=this.settings.fountainProfile==="v1"?"fountain-v1":"fountain-v2"')) {
+  throw new Error("fountain profile setting is not mapped to the runtime style");
+}
+if (!main.includes('this.activeStyle.inkStyle=HandwritingFountainInk.isFountain(j)&&s==="pen"&&t.pointerType==="pen"?j.inkStyle:void 0')) {
+  throw new Error("primary pen path does not select the configured fountain profile");
+}
+if (!main.includes('this.strokeStyle.inkStyle=u==="pen"&&!this.mouseStroke&&HandwritingFountainInk.isFountain(j)?j.inkStyle:void 0')) {
+  throw new Error("PDF pen path does not select the configured fountain profile");
+}
 if (!main.includes("/* BEGIN HANDWRITING ACTIVE SVG */") || !main.includes("/* END HANDWRITING ACTIVE SVG */")) {
   throw new Error("active SVG source markers are missing");
 }
@@ -25,8 +35,8 @@ for (const fragment of [
   "o=this.fountainLastPoint,a=o?[o,...s]:s",
   "this.fountainLastPoint=s[s.length-1]",
   "HandwritingFountainInk.finish(this.fountainState)",
-  "name:\"Pen style\"",
-  "key:\"penStyle\"",
+  "HandwritingFountainInk.isFountain(e)",
+  'penStyle:e?.penStyle==="classic"?"classic":"fountain"',
 ]) {
   if (!main.includes(fragment)) throw new Error(`bundle integration is missing: ${fragment}`);
 }

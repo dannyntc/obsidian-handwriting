@@ -131,14 +131,14 @@ replaceOnce(
 
 replaceOnce(
   "completed renderer setting row",
-  '},{name:"Pen style",desc:"Choose the appearance of new pen strokes. Existing handwriting keeps its saved style.",control:{type:"dropdown",key:"penStyle",options:{fountain:"Fountain pen",classic:"Classic"}}},{name:"Pen reticle"',
-  '},{name:"Pen style",desc:"Choose the appearance of new pen strokes. Existing handwriting keeps its saved style.",control:{type:"dropdown",key:"penStyle",options:{fountain:"Fountain pen",classic:"Classic"}}},{name:"Completed handwriting",desc:"Choose how saved handwriting is presented in Markdown notes. SVG is sharper; Canvas is the compatibility fallback.",control:{type:"dropdown",key:"completedInkRenderer",options:{svg:"SVG (sharp)",canvas:"Canvas (compatibility)"}}},{name:"Pen reticle"',
+  '},{name:"Fountain pressure profile",desc:"Choose the pressure response for new Fountain pen strokes. Existing handwriting keeps its saved profile.",control:{type:"dropdown",key:"fountainProfile",options:{v1:"Original Fountain v1",v2:"Expanded pressure v2"}}},{name:"Pen reticle"',
+  '},{name:"Fountain pressure profile",desc:"Choose the pressure response for new Fountain pen strokes. Existing handwriting keeps its saved profile.",control:{type:"dropdown",key:"fountainProfile",options:{v1:"Original Fountain v1",v2:"Expanded pressure v2"}}},{name:"Completed handwriting",desc:"Choose how saved handwriting is presented in Markdown notes. SVG is sharper; Canvas is the compatibility fallback.",control:{type:"dropdown",key:"completedInkRenderer",options:{svg:"SVG (sharp)",canvas:"Canvas (compatibility)"}}},{name:"Pen reticle"',
 );
 
 replaceOnce(
   "completed renderer setting handler",
-  'case"penStyle":r.penStyle=o==="classic"?"classic":"fountain",this.plugin.applyRuntimeSettings(),this.rerender();break;case"booxMode":',
-  'case"penStyle":r.penStyle=o==="classic"?"classic":"fountain",this.plugin.applyRuntimeSettings(),this.rerender();break;case"completedInkRenderer":r.completedInkRenderer=o==="canvas"?"canvas":"svg",this.plugin.applyRuntimeSettings(),this.rerender();break;case"booxMode":',
+  'case"penStyle":r.penStyle=o==="classic"?"classic":"fountain",this.plugin.applyRuntimeSettings(),this.rerender();break;case"completedInkRenderer":',
+  'case"completedInkRenderer":r.completedInkRenderer=o==="canvas"?"canvas":"svg",this.plugin.applyRuntimeSettings(),this.rerender();break;case"booxMode":',
 );
 
 new vm.Script(bundle, { filename: path });

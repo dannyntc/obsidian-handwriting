@@ -23,7 +23,10 @@ replaceOnce(
   "active SVG mount",
 );
 
-const methods = "canUseActiveSvgStroke(){let e=this.activeStyle,t=this.activeWet,n=this.settledSvgPresentation?.report?.();return!this.retiring&&this.mode===\"ink\"&&e?.inkStyle===\"fountain-v1\"&&!!t?.fountainState&&this.committedSvgRenderer?.getMode?.()===\"svg\"&&n?.visible===!0}startActiveSvgStroke(){if(!this.activeSvgStroke)return!1;this.updateCommittedSvgViewport?.();this.updateSettledSvgPresentation?.(\"active-ink\");return this.activeSvgStroke.start()}scheduleActiveSvgStroke(){this.activeSvgStroke?.schedule?.()}flushActiveSvgStroke(){return this.activeSvgStroke?.flush?.()??!1}clearActiveSvgStroke(){this.activeSvgStroke?.clear?.()}";
+const legacyMethods = "canUseActiveSvgStroke(){let e=this.activeStyle,t=this.activeWet,n=this.settledSvgPresentation?.report?.();return!this.retiring&&this.mode===\"ink\"&&e?.inkStyle===\"fountain-v1\"&&!!t?.fountainState&&this.committedSvgRenderer?.getMode?.()===\"svg\"&&n?.visible===!0}startActiveSvgStroke(){if(!this.activeSvgStroke)return!1;this.updateCommittedSvgViewport?.();this.updateSettledSvgPresentation?.(\"active-ink\");return this.activeSvgStroke.start()}scheduleActiveSvgStroke(){this.activeSvgStroke?.schedule?.()}flushActiveSvgStroke(){return this.activeSvgStroke?.flush?.()??!1}clearActiveSvgStroke(){this.activeSvgStroke?.clear?.()}";
+if (bundle.includes(legacyMethods)) bundle = bundle.replace(legacyMethods, "");
+
+const methods = "canUseActiveSvgStroke(){let e=this.activeStyle,t=this.activeWet,n=this.settledSvgPresentation?.report?.();return!this.retiring&&this.mode===\"ink\"&&HandwritingFountainInk.isFountain(e)&&!!t?.fountainState&&this.committedSvgRenderer?.getMode?.()===\"svg\"&&n?.visible===!0}startActiveSvgStroke(){if(!this.activeSvgStroke)return!1;this.updateCommittedSvgViewport?.();this.updateSettledSvgPresentation?.(\"active-ink\");return this.activeSvgStroke.start()}scheduleActiveSvgStroke(){this.activeSvgStroke?.schedule?.()}flushActiveSvgStroke(){return this.activeSvgStroke?.flush?.()??!1}clearActiveSvgStroke(){this.activeSvgStroke?.clear?.()}";
 const methodAnchor = `${methods}penDown(e,t){this.viewportGeneration++,`;
 while (bundle.includes(`${methods}${methodAnchor}`)) {
   bundle = bundle.replace(`${methods}${methodAnchor}`, methodAnchor);
