@@ -1,6 +1,13 @@
 # Changelog
 
-This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.6`.
+This history reconstructs the changes made after the installed `1.4.23` bundle. The release periods are based on the preserved baseline, implementation plans/specifications, checkpoints, and verification records. The intermediate versions are historical groupings; the current distributable bundle is `1.8.7`.
+
+## 1.8.7 — 2026-11-01
+
+### Fixed
+
+- Active SVG handwriting now hides the wet canvas and pen tile together and restores their captured visibility only after raster cleanup, removing the visible Pencil-down/Pencil-up presentation transition.
+- The active SVG patcher is idempotent across generated bundle revisions, with regression coverage for ownership cleanup and tile-canvas integration.
 
 ## 1.8.6 — 2026-10-30
 

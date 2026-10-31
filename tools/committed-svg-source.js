@@ -306,6 +306,36 @@ var HandwritingCommittedSvg = (() => {
       }
     };
 
+    const adoptTransient = (stroke, node, d) => {
+      if (!stroke || !node || typeof d !== "string" || d.trim() === ""
+        || mode !== "svg" || !visible(stroke)) return false;
+      const key = strokeKey(stroke);
+      const layerName = layerFor(stroke);
+      const layer = layers[layerName];
+      if (!layer) return false;
+      const existing = nodes.get(key);
+      if (existing && existing !== node) existing.remove?.();
+      setAttributeIfChanged(node, "fill-rule", "nonzero");
+      setStyle(node, "pointerEvents", "none");
+      setAttributeIfChanged(node, "d", d);
+      setAttributeIfChanged(node, "fill", options.color?.(stroke) ?? stroke.color ?? "#000000");
+      if (node.parentNode !== layer) layer.appendChild(node);
+      nodes.set(key, node);
+      nodeLayers.set(key, layerName);
+      const revision = options.revision ? options.revision(stroke) : fallbackRevision(stroke);
+      geometryCache.set(key, { revision, d, lastUsed: ++geometryClock });
+      trimGeometryCache();
+      const previousIndex = lastStrokes.findIndex(item => strokeKey(item) === key);
+      if (previousIndex >= 0) lastStrokes[previousIndex] = stroke;
+      else lastStrokes.push(stroke);
+      const oppositeKey = `${layerName === "highlighter" ? "pen" : "highlighter"}:${text(stroke.id)}`;
+      if (oppositeKey !== key && nodes.has(oppositeKey)) removeKey(oppositeKey);
+      refreshVisibleCounts();
+      stats.pathsCreated++;
+      stats.lastError = null;
+      return true;
+    };
+
     const clear = () => {
       for (const key of [...nodes.keys()]) removeKey(key);
       for (const layer of Object.values(layers)) while (layer.firstChild) layer.removeChild(layer.firstChild);
@@ -360,6 +390,7 @@ var HandwritingCommittedSvg = (() => {
       getViewportViewBox,
       reconcile,
       upsertCommitted,
+      adoptTransient,
       clear,
       dispose,
       report,

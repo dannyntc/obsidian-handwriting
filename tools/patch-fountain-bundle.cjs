@@ -93,7 +93,7 @@ replaceOnce(
 replaceOnce(
   "live fountain initialization",
   't=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t):null,this.fountainState&&HandwritingFountainInk.append(this.fountainState,e),this.lastPoint=e,this.smoother.reset(e),',
-  't=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t):null,this.fountainLastPoint=null,this.fountainState&&(HandwritingFountainInk.append(this.fountainState,e),this.fountainLastPoint=this.fountainState.ribbon[this.fountainState.ribbon.length-1]),this.lastPoint=e,this.smoother.reset(e),',
+  't=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t,4):null,this.fountainLastPoint=null,this.fountainState&&(HandwritingFountainInk.append(this.fountainState,e),this.fountainLastPoint=this.fountainState.ribbon[this.fountainState.ribbon.length-1]),this.lastPoint=e,this.smoother.reset(e),',
 );
 replaceOnce(
   "live fountain append",

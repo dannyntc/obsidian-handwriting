@@ -368,8 +368,8 @@ if (!main.includes("this.pinchPending=null,this.settledSvgPinchAnchor=null,this.
 }
 const resizeStart = main.indexOf("handleResize(){", flushStart);
 const resizeEnd = resizeStart >= 0 ? main.indexOf("allocateHighlightPair()", resizeStart) : -1;
-if (resizeStart < 0 || resizeEnd < 0 || !main.slice(resizeStart, resizeEnd).includes('this.pinchPreview||this.exitSettledSvgPresentation?.("resize")')) {
-  throw new Error("resize callbacks can still hide the settled SVG during pinch preview");
+if (resizeStart < 0 || resizeEnd < 0 || !main.slice(resizeStart, resizeEnd).includes('(!this.pinchPreview&&!this.activeSvgStroke?.report?.().active)&&this.exitSettledSvgPresentation?.("resize")')) {
+  throw new Error("resize callbacks do not preserve an active SVG stroke");
 }
 
 const settledMethods = vm.runInNewContext(`({${extractMethod(

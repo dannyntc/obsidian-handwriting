@@ -277,6 +277,31 @@ var HandwritingFountainInk = (() => {
 
   const path = (stroke, renderScale = 4) => pathFromRibbon(build(stroke, renderScale));
 
+  const previewState = state => {
+    if (!state || !Array.isArray(state.raw) || !Array.isArray(state.ribbon)) return null;
+    return {
+      options: state.options,
+      raw: state.raw.map(point => ({ ...point })),
+      ribbon: state.ribbon.map(point => ({ ...point })),
+      previous: state.previous ? { ...state.previous } : null,
+      lastMid: state.lastMid ? { ...state.lastMid } : null,
+      lastSample: state.lastSample ? { ...state.lastSample } : null,
+      pressure: state.pressure,
+      speed: state.speed,
+      length: state.length,
+      lastHalfWidth: state.lastHalfWidth,
+      firstHalfWidth: state.firstHalfWidth,
+      finished: false,
+    };
+  };
+
+  const pathFromState = state => {
+    const preview = previewState(state);
+    if (!preview) return "";
+    finish(preview);
+    return pathFromRibbon(preview.ribbon);
+  };
+
   const drawCanvas = (context, camera, stroke, _style, _settled = true) => {
     const ribbon = build(stroke, Math.max(1, camera?.zoom ?? 1));
     if (ribbon.length === 0) return;
@@ -320,6 +345,7 @@ var HandwritingFountainInk = (() => {
     build,
     geometry,
     path,
+    pathFromState,
     pathFromRibbon,
     drawCanvas,
     pdfGeometry,

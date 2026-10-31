@@ -4,7 +4,7 @@ An Obsidian community plugin for handwriting, highlighting, erasing, and lasso s
 
 ## Current release
 
-Version `1.8.6`.
+Version `1.8.7`.
 
 This release includes:
 
@@ -20,6 +20,7 @@ This release includes:
 - Editable handwriting preserved in the plugin's `.handwriting` sidecar storage when the plugin is re-enabled.
 - After an erase gesture ends, the selected tool automatically returns to the pen or highlighter that was active before erasing.
 - Live Apple Pencil fountain strokes now use incremental SVG presentation while the Pencil is down, keeping the active handwriting sharp without sacrificing the canvas fallback or frame-batched input path.
+- Active SVG handwriting now hides and restores the wet canvas and pen tile as one visibility transaction, preventing a visible style transition when the Pencil is lifted.
 
 See [CHANGELOG.md](CHANGELOG.md) for the reconstructed release history.
 

@@ -15,11 +15,12 @@ replaceOnce(
   "strokeStyle;fountainState;beginStroke(e,t,n=!1,r){",
   "strokeStyle;fountainState;fountainLastPoint;beginStroke(e,t,n=!1,r){",
 );
-replaceOnce(
-  "live fountain initialization",
-  "t=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t):null,this.fountainState&&HandwritingFountainInk.append(this.fountainState,e),this.lastPoint=e,this.smoother.reset(e),",
-  "t=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t):null,this.fountainLastPoint=null,this.fountainState&&(HandwritingFountainInk.append(this.fountainState,e),this.fountainLastPoint=this.fountainState.ribbon[this.fountainState.ribbon.length-1]),this.lastPoint=e,this.smoother.reset(e),",
-);
+const liveInit = "t=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t):null,this.fountainState&&HandwritingFountainInk.append(this.fountainState,e),this.lastPoint=e,this.smoother.reset(e),";
+const liveInitWithBridge = "t=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t):null,this.fountainLastPoint=null,this.fountainState&&(HandwritingFountainInk.append(this.fountainState,e),this.fountainLastPoint=this.fountainState.ribbon[this.fountainState.ribbon.length-1]),this.lastPoint=e,this.smoother.reset(e),";
+const liveInitWithScale = "t=this.strokeStyle??t,this.fountainState=HandwritingFountainInk.isFountain(t)?HandwritingFountainInk.createState(t,4):null,this.fountainLastPoint=null,this.fountainState&&(HandwritingFountainInk.append(this.fountainState,e),this.fountainLastPoint=this.fountainState.ribbon[this.fountainState.ribbon.length-1]),this.lastPoint=e,this.smoother.reset(e),";
+if (bundle.includes(liveInit)) bundle = bundle.replace(liveInit, liveInitWithScale);
+else if (bundle.includes(liveInitWithBridge)) bundle = bundle.replace(liveInitWithBridge, liveInitWithScale);
+else if (!bundle.includes(liveInitWithScale)) throw new Error("live fountain initialization: expected one match, found 0");
 replaceOnce(
   "live fountain append",
   "appendPoint(e,t,n){if(this.fountainState){this.lastPoint&&this.markPaint();let r=this.incompletePaint;this.incompletePaint=!0;let s=HandwritingFountainInk.append(this.fountainState,n);s.length&&(mt(this.stripTarget(e,s),e,s,it(t)),this.growDirtyStrip(e,s),this.drewOnce||(this.drewOnce=!0,this.attrsAfterFirstDraw=this.currentAttrs())),this.lastPoint=n,this.incompletePaint=r;return}this.lastPoint&&this.markPaint();let r=this.incompletePaint;",

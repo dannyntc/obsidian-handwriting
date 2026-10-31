@@ -1,10 +1,11 @@
 /*
- * Incremental SVG presentation for the currently active fountain stroke.
+ * Canonical live SVG presentation for the currently active fountain stroke.
  *
- * This helper owns only transient SVG path nodes and the canvas handoff. The
- * editor still owns the fountain state, persistence, gestures, and settled
- * SVG layer. It deliberately batches appends to one animation frame so raw
- * Pencil events never force a full SVG reconciliation.
+ * The editor still owns fountain state, persistence, gestures, and the
+ * settled SVG layer. This helper owns one transient path and the canvas
+ * handoff. Every frame serializes the same whole-stroke outline that the
+ * completed renderer will use, so lifting the Pencil does not replace a
+ * collection of differently capped chunks with a different shape.
  */
 var HandwritingActiveSvgStroke = (() => {
   const SVG_NS = "http://www.w3.org/2000/svg";
@@ -13,11 +14,14 @@ var HandwritingActiveSvgStroke = (() => {
     const doc = options?.document;
     const windowRef = options?.window;
     let layer = null;
-    let paths = [];
-    let ribbonCount = 0;
+    let path = null;
     let frame = 0;
     let active = false;
+    let adopted = false;
     let canvasHidden = false;
+    let canvasVisibilityToken = null;
+    let lastRevision = null;
+    let lastD = "";
 
     const cancelFrame = () => {
       if (frame === 0) return;
@@ -27,39 +31,61 @@ var HandwritingActiveSvgStroke = (() => {
 
     const restoreCanvas = () => {
       if (!canvasHidden) return;
-      options.restoreCanvas?.();
+      options.restoreCanvas?.(canvasVisibilityToken);
+      canvasVisibilityToken = null;
       canvasHidden = false;
     };
 
-    const clear = () => {
-      cancelFrame();
-      for (const path of paths) path.remove?.();
-      paths = [];
-      ribbonCount = 0;
-      layer = null;
-      active = false;
-      restoreCanvas();
+    const stateRevision = state => {
+      const raw = Array.isArray(state?.raw) ? state.raw : [];
+      const ribbon = Array.isArray(state?.ribbon) ? state.ribbon : [];
+      const last = raw[raw.length - 1] ?? {};
+      return [
+        raw.length,
+        ribbon.length,
+        last.x, last.y, last.pressure, last.t,
+        state?.pressure,
+        state?.lastHalfWidth,
+        options.getPreviewRevision?.(),
+      ].map(value => String(value ?? "")).join("|");
     };
 
-    const appendRibbon = ribbon => {
-      if (!layer || !Array.isArray(ribbon) || ribbon.length === 0) return false;
+    const createPath = () => {
+      if (!layer || typeof doc?.createElementNS !== "function") return null;
+      const next = doc.createElementNS(SVG_NS, "path");
+      if (!next) return null;
+      next.setAttribute?.("fill-rule", "nonzero");
+      if (next.style) next.style.pointerEvents = "none";
+      layer.appendChild?.(next);
+      path = next;
+      return next;
+    };
+
+    const updatePath = d => {
+      if (!layer || typeof d !== "string" || d.trim() === "") return false;
+      const next = path ?? createPath();
+      if (!next) return false;
+      if (next.getAttribute?.("d") !== d) next.setAttribute?.("d", d);
+      const style = options.getStyle?.() ?? {};
+      const color = style.color ?? "#2f6de0";
+      if (next.getAttribute?.("fill") !== color) next.setAttribute?.("fill", color);
+      lastD = d;
+      return true;
+    };
+
+    const pathForState = state => {
       let d = "";
       try {
-        d = String(options.pathFromRibbon?.(ribbon) ?? "").trim();
+        const previewStroke = options.getPreviewStroke?.();
+        if (previewStroke?.points?.length && typeof options.pathFromStroke === "function") {
+          d = String(options.pathFromStroke(previewStroke) ?? "").trim();
+        }
+        if (d === "") d = String(options.pathFromState?.(state) ?? "").trim();
+        if (d === "") d = String(options.pathFromRibbon?.(state?.ribbon) ?? "").trim();
       } catch {
-        return false;
+        d = "";
       }
-      if (d === "") return false;
-      const path = doc?.createElementNS?.(SVG_NS, "path");
-      if (!path) return false;
-      path.setAttribute?.("fill-rule", "nonzero");
-      path.setAttribute?.("d", d);
-      const style = options.getStyle?.() ?? {};
-      path.setAttribute?.("fill", style.color ?? "#2f6de0");
-      if (path.style) path.style.pointerEvents = "none";
-      layer.appendChild?.(path);
-      paths.push(path);
-      return true;
+      return d;
     };
 
     const flush = () => {
@@ -67,18 +93,53 @@ var HandwritingActiveSvgStroke = (() => {
       const state = options.getState?.();
       const ribbon = state?.ribbon;
       if (!Array.isArray(ribbon) || ribbon.length === 0) return false;
-      if (ribbon.length < ribbonCount) {
-        clear();
-        return false;
-      }
-      if (ribbon.length === ribbonCount) return false;
-      const start = Math.max(0, ribbonCount - 1);
-      if (!appendRibbon(ribbon.slice(start))) return false;
-      ribbonCount = ribbon.length;
+      const revision = stateRevision(state);
+      if (revision === lastRevision && path) return false;
+      const d = pathForState(state);
+      if (d === "" || !updatePath(d)) return false;
+      lastRevision = revision;
       if (!canvasHidden) {
-        options.hideCanvas?.();
+        canvasVisibilityToken = options.hideCanvas?.() ?? null;
         canvasHidden = true;
       }
+      return true;
+    };
+
+    const clear = () => {
+      cancelFrame();
+      if (path && !adopted) path.remove?.();
+      path = null;
+      layer = null;
+      active = false;
+      adopted = false;
+      lastRevision = null;
+      lastD = "";
+      restoreCanvas();
+    };
+
+    const complete = stroke => {
+      if (!active || !layer || !path) return false;
+      cancelFrame();
+      let d = "";
+      try {
+        d = String(options.pathFromStroke?.(stroke) ?? "").trim();
+      } catch {
+        d = "";
+      }
+      if (d === "") d = lastD || pathForState(options.getState?.());
+      if (d === "" || !updatePath(d)) return false;
+
+      let transferred = false;
+      if (stroke && typeof options.adoptPath === "function") {
+        try {
+          transferred = options.adoptPath(stroke, path, d) === true;
+        } catch {
+          transferred = false;
+        }
+      }
+      adopted = transferred;
+      active = false;
+      lastRevision = null;
       return true;
     };
 
@@ -113,14 +174,15 @@ var HandwritingActiveSvgStroke = (() => {
       start,
       schedule,
       flush,
+      complete,
       clear,
       dispose: clear,
       report: () => ({
         active,
-        pathCount: paths.length,
-        ribbonCount,
+        pathCount: path && path.parentNode ? 1 : 0,
         framePending: frame !== 0,
         canvasHidden,
+        adopted,
       }),
     };
   };

@@ -4,7 +4,7 @@ const source = fs.readFileSync("tools/fountain-ink-source.js", "utf8").trim();
 const activeSource = fs.readFileSync("tools/active-svg-source.js", "utf8").trim();
 const main = fs.readFileSync("main.js", "utf8");
 
-if (manifest.version !== "1.8.6") throw new Error(`unexpected manifest version: ${manifest.version}`);
+if (manifest.version !== "1.8.7") throw new Error(`unexpected manifest version: ${manifest.version}`);
 if (!main.includes("/* BEGIN HANDWRITING FOUNTAIN INK */") || !main.includes("/* END HANDWRITING FOUNTAIN INK */")) {
   throw new Error("fountain source markers are missing");
 }
@@ -35,6 +35,11 @@ for (const fragment of [
   "o=this.fountainLastPoint,a=o?[o,...s]:s",
   "this.fountainLastPoint=s[s.length-1]",
   "HandwritingFountainInk.finish(this.fountainState)",
+  "pathFromState",
+  "getPreviewStroke",
+  "getPreviewRevision",
+  "!this.activeSvgStroke?.report?.().active&&this.tail.drawHead",
+  "!this.activeSvgStroke?.report?.().active&&d&&this.tail.draw",
   "HandwritingFountainInk.isFountain(e)",
   'penStyle:e?.penStyle==="classic"?"classic":"fountain"',
 ]) {
@@ -48,8 +53,19 @@ for (const fragment of [
   "clearActiveSvgStroke",
   "HandwritingActiveSvgStroke.create",
   "this.scheduleActiveSvgStroke?.()",
+  "this.handoffActiveSvgStroke?.(r?.[0])",
+  "pathFromStroke:e=>HandwritingFountainInk.path(e,4)",
+  "adoptPath:(e,t,n)=>this.committedSvgRenderer?.adoptTransient?.(e,t,n)??!1",
+  'this.settledSvgGeometryCache=null,(!this.pinchPreview&&!this.activeSvgStroke?.report?.().active)&&this.exitSettledSvgPresentation?.("resize")',
+  'this.committedBacking=d,this.updateCommittedSvgViewport?.(),this.activeSvgStroke?.report?.().active&&this.updateSettledSvgPresentation?.("active-resize")',
+  "wetTileCanvas",
+  "this.activeWet===this.wet",
 ]) {
   if (!main.includes(fragment)) throw new Error(`active SVG integration is missing: ${fragment}`);
+}
+
+if (!main.includes("HandwritingFountainInk.createState(t,4)")) {
+  throw new Error("live fountain geometry does not use the settled render scale");
 }
 
 for (const method of [

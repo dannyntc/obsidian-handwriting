@@ -110,6 +110,18 @@ if (renderer.pen.children[0].getAttribute("d") !== paths.get("pen-1")) {
   throw new Error("pen path geometry was not assigned");
 }
 
+const adoptedNode = doc.createElementNS(SVG_NS, "path");
+renderer.pen.appendChild(adoptedNode);
+const adoptedStroke = { id: "adopted", tool: "pen", color: "#975", revision: 7, bbox: { x: 1, y: 1, width: 4, height: 4 } };
+if (!renderer.adoptTransient(adoptedStroke, adoptedNode, "M 1 1 L 4 4 Z")) {
+  throw new Error("committed SVG renderer rejected a visible transient path");
+}
+const pathCallsBeforeAdoptedUpsert = pathCalls;
+renderer.upsertCommitted(adoptedStroke);
+if (pathCalls !== pathCallsBeforeAdoptedUpsert || renderer.pen.children.includes(adoptedNode) === false) {
+  throw new Error("adopted SVG path was regenerated or removed during commit reconciliation");
+}
+
 const viewportWrites = renderer.pen.attributeWrites + renderer.highlighter.attributeWrites;
 renderer.setViewport({ x: -5, y: -6, width: 100, height: 80, zoom: 1.5 });
 if (renderer.pen.attributeWrites + renderer.highlighter.attributeWrites !== viewportWrites) {
@@ -146,6 +158,7 @@ if (pathCalls !== pathCallsBeforeStableReconcile) {
 
 const newStroke = { id: "pen-2", tool: "pen", color: "#357", revision: 1, bbox: { x: 20, y: 20, width: 10, height: 10 } };
 const pathCallsBeforeIncremental = pathCalls;
+const incrementalBeforeNewStroke = renderer.report().incrementalUpserts;
 renderer.upsertCommitted(newStroke);
 if (pathCalls !== pathCallsBeforeIncremental + 1) {
   throw new Error("incremental commit regenerated more than the new stroke");
@@ -156,7 +169,7 @@ if (renderer.pen.children.length !== 2 || renderer.pen.children[1].getAttribute(
 if (penNode.appendCount !== penAppendsBeforeStableReconcile) {
   throw new Error("incremental commit re-appended an existing pen path");
 }
-if (renderer.report().incrementalUpserts !== 1) {
+if (renderer.report().incrementalUpserts !== incrementalBeforeNewStroke + 1) {
   throw new Error("incremental commit was not recorded");
 }
 
